@@ -71,6 +71,7 @@ try {
 
     const microtasticDir = __dirname;
     const projectDir = process.cwd()
+    const projectNodeModulesDir = path.join(projectDir, '/node_modules/');
     const projectPkgPath = path.join(projectDir, '/package.json');
     const projectGitIgnorePath = path.join(projectDir, '/.gitignore');
     const microtasticSettingsPath = path.join(projectDir, '/.microtastic');
@@ -131,9 +132,8 @@ try {
         let i = 0;
         Object.keys(appPkg.dependencies).forEach((e) => {
             const bundle = async () => {
-                console.log(`- ${e}`);
                 const b = await rollup.rollup({
-                    input: `node_modules/${e}`,
+                    input: `${projectNodeModulesDir}${e}`,
                     plugins: [nodeResolve(), commonjs(), nodePolyfills()]
                 });
                 await b.write({
@@ -142,6 +142,7 @@ try {
                     dir: appDependenciesDir
                 });
             };
+            bundle();
         });
         break;
     case 'prod':
