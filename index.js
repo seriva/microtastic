@@ -10,6 +10,8 @@ const fs = require('fs');
 const http = require('http');
 const url = require('url');
 
+const hrstart = process.hrtime()
+
 const copyRecursiveSync = (src, dest, exclude) => {
     if (!exclude) exclude = [];
     const exists = fs.existsSync(src);
@@ -184,6 +186,8 @@ try {
                     data,
                     `${publicDir}/sw.js`
                 );
+                const hrend = process.hrtime(hrstart)
+                console.info('Build time: %d.%ds', hrend[0], Math.round(hrend[1] / 1000000))
             }
         });
         break;
