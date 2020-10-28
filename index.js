@@ -136,7 +136,7 @@ try {
             const bundle = async () => {
                 const b = await rollup.rollup({
                     input: `${projectNodeModulesDir}${e}`,
-                    plugins: [nodeResolve.nodeResolve(), commonjs(), nodePolyfills()]
+                    plugins: [nodeResolve.nodeResolve({ preferBuiltins: true }), commonjs(), nodePolyfills()]
                 });
                 await b.write({
                     format: 'es',
