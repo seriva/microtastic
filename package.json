@@ -1,6 +1,6 @@
 {
   "name": "microtastic",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "Small tooling package for pure ES6 browser development.",
   "main": "index.js",
   "scripts": {},
@@ -15,7 +15,7 @@
     "microtastic": "./index.js"
   },
   "dependencies": {
-    "@rollup/plugin-commonjs": "^18.0.0",
+    "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "10.0.0",
     "babel-eslint": "~10.1.0",
     "eslint": "^7.23.0",
@@ -29,6 +29,5 @@
   "bugs": {
     "url": "https://github.com/seriva/microtastic/issues"
   },
-  "homepage": "https://github.com/seriva/microtastic#readme",
-  "devDependencies": {}
+  "homepage": "https://github.com/seriva/microtastic#readme"
 }
