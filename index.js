@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const rollup = require('rollup');
 const terser = require('rollup-plugin-terser');
-const eslint = require('rollup-plugin-eslint');
+const eslint = require('@rollup/plugin-eslint');
 const commonjs = require('@rollup/plugin-commonjs');
 const nodeResolve = require('@rollup/plugin-node-resolve');
 const nodePolyfills = require('rollup-plugin-polyfill-node');
