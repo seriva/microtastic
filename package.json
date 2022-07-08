@@ -1,6 +1,6 @@
 {
   "name": "microtastic",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "description": "Small tooling package for pure ES6 browser development.",
   "main": "index.js",
   "scripts": {},

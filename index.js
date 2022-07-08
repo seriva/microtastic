@@ -91,43 +91,43 @@ try {
         eslintOnBuild: false,
         minifyBuild: true,
         serverPort: 8181
-    } 
+    }
     if (fs.existsSync(microtasticSettingsPath)) {
-        const loadedMicrotasticSettings = JSON.parse(fs.readFileSync(microtasticSettingsPath, 'utf8'));  
+        const loadedMicrotasticSettings = JSON.parse(fs.readFileSync(microtasticSettingsPath, 'utf8'));
         microtasticSettings = { ...microtasticSettings, ...loadedMicrotasticSettings };
     }
-    
+
     if (!fs.existsSync(projectPkgPath)) {
         throw new Error('No package.json in the app folder');
     }
-    const appPkg = JSON.parse(fs.readFileSync(projectPkgPath, 'utf8'));  
+    const appPkg = JSON.parse(fs.readFileSync(projectPkgPath, 'utf8'));
 
     const cmd = process.argv[2].toLowerCase();
     switch (cmd) {
     case 'version':
         const microtasticPkg = JSON.parse(fs.readFileSync(path.join(microtasticDir, '/package.json'), 'utf8'));
         console.log(`Version: ${microtasticPkg.version}`);
-        break;         
+        break;
     case 'init':
         if (fs.existsSync(path.join(projectDir, '/app/'))) {
             throw new Error('Project already initialized');
         }
 
         copyRecursiveSync(
-            path.join(microtasticDir, '/template/'), 
-            path.join(projectDir, '/'), 
+            path.join(microtasticDir, '/template/'),
+            path.join(projectDir, '/'),
             []
         );
 
         appPkg.scripts.prepare = 'microtastic prep';
         appPkg.scripts.dev = 'microtastic dev';
-        appPkg.scripts.build = 'microtastic prod'; 
+        appPkg.scripts.build = 'microtastic prod';
         fs.writeFileSync(projectPkgPath, JSON.stringify(appPkg, undefined, 2), 'utf8');
 
         if (fs.existsSync(projectGitIgnorePath)) {
             fs.appendFileSync(projectGitIgnorePath, '\n# microtastic specific\npublic\napp/src/dependencies');
         }
-        break;        
+        break;
     case 'prep':
         deleteRecursiveSync(appDependenciesDir);
         fs.mkdirSync(appDependenciesDir);
@@ -155,7 +155,7 @@ try {
             const b = await rollup.rollup({
                 input: appSrcEntryPath,
                 plugins: [
-                    microtasticSettings.eslintOnBuild ? eslint.eslint() : null,
+                    microtasticSettings.eslintOnBuild ? eslint() : null,
                     microtasticSettings.minifyBuild ?terser.terser() : null
                 ],
                 preserveEntrySignatures: false
