@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const rollup = require('rollup');
-const terser = require('rollup-plugin-terser');
+const terser = require('@rollup/plugin-terser');
 const eslint = require('@rollup/plugin-eslint');
 const commonjs = require('@rollup/plugin-commonjs');
 const nodeResolve = require('@rollup/plugin-node-resolve');
@@ -156,7 +156,7 @@ try {
                 input: appSrcEntryPath,
                 plugins: [
                     microtasticSettings.eslintOnBuild ? eslint() : null,
-                    microtasticSettings.minifyBuild ?terser.terser() : null
+                    microtasticSettings.minifyBuild ? terser() : null
                 ],
                 preserveEntrySignatures: false
             });
