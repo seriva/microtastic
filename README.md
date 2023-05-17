@@ -1,6 +1,4 @@
-# ```Microtastic```
-
-## What is it?
+## About
 
 ```Microtastic``` is a tiny (250 line) CLI tool to aid developing browser based applications in pure ES6 without the overtooling and dependency hell some tool chains introduce. Inspired by [Snowpack](https://www.snowpack.dev/) ```Microtastic``` is much lighter and simpler but more opinionated in project structure and how to use it.
 
