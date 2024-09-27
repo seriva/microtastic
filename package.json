@@ -1,6 +1,6 @@
 {
   "name": "microtastic",
-  "version": "0.0.27",
+  "version": "0.0.28",
   "description": "Small tooling package for pure ES6 browser development.",
   "main": "index.js",
   "scripts": {},
@@ -15,12 +15,12 @@
     "microtastic": "./index.js"
   },
   "dependencies": {
-    "@babel/eslint-parser": "^7.24.1",
-    "@rollup/plugin-commonjs": "^25.0.7",
+    "@babel/eslint-parser": "^7.25.1",
+    "@rollup/plugin-commonjs": "^28.0.0",
     "@rollup/plugin-eslint": "^9.0.5",
-    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-node-resolve": "^15.3.0",
     "@rollup/plugin-terser": "^0.4.4",
-    "rollup": "^4.16.3",
+    "rollup": "^4.22.4",
     "rollup-plugin-polyfill-node": "^0.13.0"
   },
   "author": "Luuk van Venrooij",
