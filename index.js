@@ -1,69 +1,149 @@
 #!/usr/bin/env node
-const rollup = require('rollup');
-const terser = require('@rollup/plugin-terser');
-const eslint = require('@rollup/plugin-eslint');
-const commonjs = require('@rollup/plugin-commonjs');
-const nodeResolve = require('@rollup/plugin-node-resolve');
-const nodePolyfills = require('rollup-plugin-polyfill-node');
-const path = require('path');
-const fs = require('fs');
-const http = require('http');
-const url = require('url');
+import { rollup } from 'rollup';
+import terser from '@rollup/plugin-terser';
+import commonjs from '@rollup/plugin-commonjs';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+import nodePolyfills from 'rollup-plugin-polyfill-node';
+import path from 'path';
+import { promises as fs } from 'fs';
+import http from 'http';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 const hrstart = process.hrtime()
 
-const copyRecursiveSync = (src, dest, exclude) => {
-    if (!exclude) exclude = [];
-    const exists = fs.existsSync(src);
-    const stats = exists && fs.statSync(src);
-    const isDirectory = exists && stats.isDirectory();
-    if (exists && isDirectory) {
-        fs.mkdirSync(dest, { recursive: true });
-        fs.readdirSync(src).forEach((childItemName) => {
-            if (exclude.indexOf(childItemName) > -1) return;
-            copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName), exclude);
-        });
-    } else {
-        fs.linkSync(src, dest);
-    }
-};
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-const deleteRecursiveSync = (dir) => {
-    if (fs.existsSync(dir)) {
-        fs.readdirSync(dir).forEach((file) => {
-            const curDir = `${dir}/${file}`;
-            if (fs.lstatSync(curDir).isDirectory()) {
-                deleteRecursiveSync(curDir);
-            } else {
-                fs.unlinkSync(curDir);
-            }
-        });
-        fs.rmdirSync(dir);
-    }
-};
-
-const listRecursiveSync = (dir, filelist) => {
-    const files = fs.readdirSync(dir);
-    filelist = filelist || [];
-    files.forEach((file) => {
-        if (fs.statSync(path.join(dir, file)).isDirectory()) {
-            filelist = listRecursiveSync(path.join(dir, file), filelist);
+const copyRecursiveSync = async (src, dest, exclude = []) => {
+    try {
+        const stats = await fs.stat(src);
+        const isDirectory = stats.isDirectory();
+        
+        if (isDirectory) {
+            await fs.mkdir(dest, { recursive: true });
+            const children = await fs.readdir(src);
+            await Promise.all(
+                children
+                    .filter(child => !exclude.includes(child))
+                    .map(child => 
+                        copyRecursiveSync(
+                            path.join(src, child), 
+                            path.join(dest, child), 
+                            exclude
+                        )
+                    )
+            );
         } else {
-            filelist.push(path.join(dir, file));
+            await fs.link(src, dest);
+        }
+    } catch (error) {
+        console.error(`Error copying ${src} to ${dest}:`, error);
+    }
+};
+
+const deleteRecursiveSync = async (dir) => {
+    try {
+        await fs.rm(dir, { 
+            recursive: true,
+            force: true  // This will prevent errors if directory doesn't exist
+        });
+    } catch (error) {
+        console.error(`Error deleting directory ${dir}:`, error);
+    }
+};
+
+const listRecursiveSync = async (dir, fileList = []) => {
+    const files = await fs.readdir(dir);
+    
+    await Promise.all(
+        files.map(async (file) => {
+            const filePath = path.join(dir, file);
+            const stats = await fs.stat(filePath);
+            
+            if (stats.isDirectory()) {
+                await listRecursiveSync(filePath, fileList);
+            } else {
+                fileList.push(filePath);
+            }
+        })
+    );
+    
+    return fileList;
+};
+
+const renderTemplate = async (template, data, output) => {
+    try {
+        const content = await fs.readFile(template, 'utf8');
+        const newContent = content.replace(
+            /{{(.*?)}}/g,
+            (_, key) => data[key.trim()]
+        );
+        
+        await fs.mkdir(path.dirname(output), { recursive: true });
+        await fs.writeFile(output, newContent);
+    } catch (error) {
+        console.error(`Error rendering template ${template}:`, error);
+        throw error;
+    }
+};
+
+const createDevServer = (appRootDir, mimeTypes) => {
+    return http.createServer(async (req, res) => {
+        const printStatus = (color) => {
+            console.log(`${color}%s\x1b[0m`, `${req.method} ${res.statusCode} ${req.url}`);
+        };
+
+        try {
+            const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+            let pathName = path.join(appRootDir, parsedUrl.pathname);
+            let ext = path.parse(pathName).ext;
+
+            const stats = await fs.stat(pathName).catch(() => null);
+            if (!stats) {
+                res.statusCode = 404;
+                res.end(`File ${pathName} not found`);
+                return printStatus('\x1b[31m');
+            }
+
+            if (stats.isDirectory()) {
+                pathName = path.join(pathName, 'index.html');
+                ext = '.html';
+            }
+
+            const data = await fs.readFile(pathName);
+            res.statusCode = 200;
+            res.setHeader('Content-type', mimeTypes[ext] || 'text/plain');
+            res.end(data);
+            printStatus('\x1b[32m');
+        } catch (error) {
+            res.statusCode = 500;
+            res.end(`Server error: ${error.message}`);
+            printStatus('\x1b[31m');
         }
     });
-    return filelist;
 };
 
-const renderTemplate = (template, data, output) => {
-    const content = fs.readFileSync(template, { encoding: 'utf8' });
-    const newContent = content.replace(/{{.*?}}/g,
-        (match) => data[`${match.slice(2, -2)}`]);
-    const p = path.dirname(output);
-    if (!fs.existsSync(p)) {
-        fs.mkdirSync(p);
+const loadSettings = async (settingsPath, defaultSettings) => {
+    try {
+        await fs.access(settingsPath);
+        const loadedSettings = JSON.parse(
+            await fs.readFile(settingsPath, 'utf8')
+        );
+        return { ...defaultSettings, ...loadedSettings };
+    } catch (error) {
+        // If file doesn't exist, return default settings
+        return defaultSettings;
     }
-    fs.writeFileSync(output, newContent);
+};
+
+const checkFileExists = async (filePath) => {
+    try {
+        await fs.access(filePath);
+        return true;
+    } catch {
+        return false;
+    }
 };
 
 try {
@@ -88,28 +168,29 @@ try {
 
     let microtasticSettings = {
         genServiceWorker: false,
-        eslintOnBuild: false,
         minifyBuild: true,
         serverPort: 8181
     }
-    if (fs.existsSync(microtasticSettingsPath)) {
-        const loadedMicrotasticSettings = JSON.parse(fs.readFileSync(microtasticSettingsPath, 'utf8'));
-        microtasticSettings = { ...microtasticSettings, ...loadedMicrotasticSettings };
-    }
+    microtasticSettings = await loadSettings(microtasticSettingsPath, microtasticSettings);
 
-    if (!fs.existsSync(projectPkgPath)) {
+    if (!(await checkFileExists(projectPkgPath))) {
         throw new Error('No package.json in the app folder');
     }
-    const appPkg = JSON.parse(fs.readFileSync(projectPkgPath, 'utf8'));
+    const appPkg = JSON.parse(await fs.readFile(projectPkgPath, 'utf8'));
 
     const cmd = process.argv[2].toLowerCase();
     switch (cmd) {
     case 'version':
-        const microtasticPkg = JSON.parse(fs.readFileSync(path.join(microtasticDir, '/package.json'), 'utf8'));
+        const microtasticPkg = JSON.parse(
+            await fs.readFile(
+                path.join(microtasticDir, '/package.json'), 
+                'utf8'
+            )
+        );
         console.log(`Version: ${microtasticPkg.version}`);
         break;
     case 'init':
-        if (fs.existsSync(path.join(projectDir, '/app/'))) {
+        if (await checkFileExists(path.join(projectDir, '/app/'))) {
             throw new Error('Project already initialized');
         }
 
@@ -122,42 +203,48 @@ try {
         appPkg.scripts.prepare = 'microtastic prep';
         appPkg.scripts.dev = 'microtastic dev';
         appPkg.scripts.build = 'microtastic prod';
-        fs.writeFileSync(projectPkgPath, JSON.stringify(appPkg, undefined, 2), 'utf8');
+        await fs.writeFile(
+            projectPkgPath, 
+            JSON.stringify(appPkg, undefined, 2), 
+            'utf8'
+        );
 
-        if (fs.existsSync(projectGitIgnorePath)) {
-            fs.appendFileSync(projectGitIgnorePath, '\n# microtastic specific\npublic\napp/src/dependencies');
+        if (await checkFileExists(projectGitIgnorePath)) {
+            await fs.appendFile(
+                projectGitIgnorePath, 
+                '\n# microtastic specific\npublic\napp/src/dependencies'
+            );
         }
         break;
     case 'prep':
-        deleteRecursiveSync(appDependenciesDir);
-        fs.mkdirSync(appDependenciesDir);
-        let i = 0;
-        Object.keys(appPkg.dependencies).forEach((e) => {
-            const bundle = async () => {
-                const b = await rollup.rollup({
+        await deleteRecursiveSync(appDependenciesDir);
+        await fs.mkdir(appDependenciesDir, { recursive: true });
+        for (const e of Object.keys(appPkg.dependencies)) {
+            try {
+                const b = await rollup({
                     input: `${projectNodeModulesDir}${e}`,
-                    plugins: [nodeResolve.nodeResolve({ preferBuiltins: true }), commonjs(), nodePolyfills()]
+                    plugins: [nodeResolve({ preferBuiltins: true }), commonjs(), nodePolyfills()]
                 });
                 await b.write({
                     format: 'es',
                     entryFileNames: `${e}.js`,
                     dir: appDependenciesDir
                 });
-            };
-            bundle();
-        });
+            } catch (error) {
+                console.error(`Error bundling ${e}:`, error);
+            }
+        }
         break;
     case 'prod':
-        deleteRecursiveSync(publicDir);
-        copyRecursiveSync(appRootDir, publicDir, [path.basename(appSrcDir)]);
+        await deleteRecursiveSync(publicDir);
+        await copyRecursiveSync(appRootDir, publicDir, [path.basename(appSrcDir)]);
 
         const bundle = async () => {
-            const b = await rollup.rollup({
+            const b = await rollup({
                 input: appSrcEntryPath,
                 plugins: [
-                    microtasticSettings.eslintOnBuild ? eslint() : null,
                     microtasticSettings.minifyBuild ? terser() : null
-                ],
+                ].filter(Boolean),
                 preserveEntrySignatures: false
             });
             await b.write({
@@ -192,59 +279,23 @@ try {
         });
         break;
     case 'dev':
-        http.createServer((req, res) => {
-            const printStatus = (color) => {
-                console.log(`${color}%s\x1b[0m`, `${req.method} ${res.statusCode} ${req.url}\x1b[0m`);
-            };
-
-            const parsedUrl = url.parse(req.url);
-            let pathName = `${appRootDir}/${parsedUrl.pathname}`;
-            let { ext } = path.parse(pathName);
-
-            const map = {
-                '.html': 'text/html',
-                '.js': 'text/javascript',
-                '.css': 'text/css',
-                '.json': 'application/json',
-                '.png': 'image/png',
-                '.jpg': 'image/jpg',
-                '.gif': 'image/gif',
-                '.svg': 'image/svg+xml',
-                '.wav': 'audio/wav',
-                '.ogg': 'audio/mpeg',
-                '.mp4': 'video/mp4',
-                '.woff': 'application/font-woff',
-                '.ttf': 'application/font-ttf',
-                '.eot': 'application/vnd.ms-fontobject',
-                '.otf': 'application/font-otf',
-                '.wasm': 'application/wasm'
-            };
-
-            fs.exists(pathName, (exist) => {
-                if (!exist) {
-                    res.statusCode = 404;
-                    res.end(`File ${pathName} not found`);
-                    printStatus('\x1b[31m');
-                } else {
-                    if (fs.statSync(pathName).isDirectory()) {
-                        pathName += '/index.html';
-                        ext = '.html';
-                    }
-
-                    fs.readFile(pathName, (err, data) => {
-                        if (err) {
-                            res.statusCode = 500;
-                            res.end(`Error getting the file: ${err}`);
-                            printStatus('\x1b[31m');
-                        } else {
-                            res.statusCode = 200;
-                            res.setHeader('Content-type', map[ext] || 'text/plain');
-                            res.end(data);
-                            printStatus('\x1b[32m');
-                        }
-                    });
-                }
-            });
+        createDevServer(appRootDir, {
+            '.html': 'text/html',
+            '.js': 'text/javascript',
+            '.css': 'text/css',
+            '.json': 'application/json',
+            '.png': 'image/png',
+            '.jpg': 'image/jpg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.wav': 'audio/wav',
+            '.ogg': 'audio/mpeg',
+            '.mp4': 'video/mp4',
+            '.woff': 'application/font-woff',
+            '.ttf': 'application/font-ttf',
+            '.eot': 'application/vnd.ms-fontobject',
+            '.otf': 'application/font-otf',
+            '.wasm': 'application/wasm'
         }).listen(microtasticSettings.serverPort);
         console.log(`Started dev server on localhost:${microtasticSettings.serverPort}`);
         break;
