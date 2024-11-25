@@ -77,7 +77,6 @@ You can create a  ```.microtastic``` file in the root of your project and add an
 ```json
 {
     "genServiceWorker": false, // Experimental feature that generates an offline-mode service worker. Mainly written for my Cubetatic project and will need additional code from the application side to work.
-    "eslintOnBuild": true, // If Rollup need to run ESLint before bundling the code
     "minifyBuild": true, // If Rollup need to minimize the application
     "serverPort": 8181 // Port the debug server is running on.
 }
