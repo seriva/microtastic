@@ -1,31 +1,32 @@
 {
-  "name": "microtastic",
-  "version": "0.0.33",
-  "description": "Small tooling package for pure ES6 browser development.",
-  "main": "index.js",
-  "type": "module",
-  "scripts": {},
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/seriva/microtastic.git"
-  },
-  "keywords": [
-    "ES6"
-  ],
-  "bin": {
-    "microtastic": "./index.js"
-  },
-  "dependencies": {
-    "@rollup/plugin-commonjs": "^28.0.1",
-    "@rollup/plugin-node-resolve": "^15.3.0",
-    "@rollup/plugin-terser": "^0.4.4",
-    "rollup": "^4.27.4",
-    "rollup-plugin-polyfill-node": "^0.13.0"
-  },
-  "author": "Luuk van Venrooij",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/seriva/microtastic/issues"
-  },
-  "homepage": "https://github.com/seriva/microtastic#readme"
+	"name": "microtastic",
+	"version": "0.0.34",
+	"description": "Small tooling package for pure ES6 browser development.",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/seriva/microtastic.git"
+	},
+	"keywords": ["ES6"],
+	"bin": {
+		"microtastic": "./index.js"
+	},
+	"dependencies": {
+		"@rollup/plugin-commonjs": "^28.0.1",
+		"@rollup/plugin-node-resolve": "^15.3.0",
+		"@rollup/plugin-terser": "^0.4.4",
+		"rollup": "^4.27.4",
+		"rollup-plugin-polyfill-node": "^0.13.0"
+	},
+	"author": "Luuk van Venrooij",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/seriva/microtastic/issues"
+	},
+	"homepage": "https://github.com/seriva/microtastic#readme",
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4"
+	}
 }
