@@ -67,12 +67,19 @@ class Logger {
     static colors = {
         error: '\x1b[31m',
         success: '\x1b[32m',
+        info: '\x1b[36m',
         reset: '\x1b[0m'
     };
 
-    constructor(options = { silent: false, debug: false }) {
-        this.silent = options.silent;
-        this.debug = options.debug;
+    constructor(options = {}) {
+        this.silent = options.silent || false;
+        this.isDebug = options.debug || false;
+    }
+
+    log(msg) {
+        if (!this.silent) {
+            console.log(msg);
+        }
     }
 
     error(msg) {
@@ -87,69 +94,70 @@ class Logger {
         }
     }
 
+    info(msg) {
+        if (!this.silent) {
+            console.log(`${Logger.colors.info}${msg}${Logger.colors.reset}`);
+        }
+    }
+
     debug(msg) {
-        if (this.debug) {
+        if (this.isDebug) {
             console.log(`DEBUG: ${msg}`);
         }
     }
 }
 
 class FileManager {
+    static async listRecursive(dir) {
+        try {
+            const files = await fs.readdir(dir, { 
+                recursive: true,
+                withFileTypes: true 
+            });
+
+            return files
+                .filter(file => file.isFile())
+                .map(file => path.join(dir, file.path, file.name));
+
+        } catch (error) {
+            throw new MicrotasticError(
+                `Failed to list contents of ${dir}: ${error.message}`,
+                'LIST_ERROR'
+            );
+        }
+    }
+
     static async copyRecursive(src, dest, exclude = []) {
         try {
-            const stats = await fs.stat(src);
-            const isDirectory = stats.isDirectory();
-            
-            if (isDirectory) {
-                await fs.mkdir(dest, { recursive: true });
-                const children = await fs.readdir(src);
-                await Promise.all(
-                    children
-                        .filter(child => !exclude.includes(child))
-                        .map(child => 
-                            FileManager.copyRecursive(
-                                path.join(src, child), 
-                                path.join(dest, child), 
-                                exclude
-                            )
-                        )
-                );
-            } else {
-                await fs.link(src, dest);
+            if (exclude.includes(path.basename(src))) {
+                return;
             }
+
+            await fs.cp(src, dest, { 
+                recursive: true,
+                force: true,
+                filter: (source) => !exclude.includes(path.basename(source))
+            });
         } catch (error) {
-            console.error(`Error copying ${src} to ${dest}:`, error);
+            throw new MicrotasticError(
+                `Failed to copy from ${src} to ${dest}: ${error.message}`,
+                'COPY_ERROR'
+            );
         }
     }
 
     static async deleteRecursive(dir) {
         try {
             await fs.rm(dir, { 
-                recursive: true,
-                force: true  // This will prevent errors if directory doesn't exist
+                recursive: true, 
+                force: true 
             });
         } catch (error) {
-            console.error(`Error deleting directory ${dir}:`, error);
+            throw new MicrotasticError(
+                `Failed to delete ${dir}: ${error.message}`,
+                'DELETE_ERROR'
+            );
         }
-    }
-
-    static async listRecursive(dir, fileList = []) {
-        const files = await fs.readdir(dir);
-        
-        await Promise.all(
-            files.map(async (file) => {
-                const filePath = path.join(dir, file);
-                const stats = await fs.stat(filePath);
-                
-                if (stats.isDirectory()) {
-                    await FileManager.listRecursive(filePath, fileList);
-                } else {
-                    fileList.push(filePath);
-                }
-            })
-        );
-        
-        return fileList;
     }
 
     static async renderTemplate(template, data, output) {
@@ -223,9 +231,27 @@ class DevServer {
 
 class CommandHandler {
     constructor(options) {
-        this.logger = new Logger(options.logging);
+        this.logger = new Logger({
+            silent: options.logging?.silent || false,
+            debug: options.logging?.debug || false
+        });
         this.settings = options.settings;
         this.paths = options.paths;
+        this.appPkg = null;
+        this.hrstart = process.hrtime();
+    }
+
+    async loadAppPackage() {
+        try {
+            const pkgContent = await fs.readFile(this.paths.projectPkgPath, 'utf8');
+            this.appPkg = JSON.parse(pkgContent);
+            return this.appPkg;
+        } catch (error) {
+            throw new MicrotasticError(
+                `Failed to load package.json: ${error.message}`, 
+                'PACKAGE_JSON_ERROR'
+            );
+        }
     }
 
     async version() {
@@ -267,26 +293,6 @@ class CommandHandler {
     }
 
     async prep() {
-        await FileManager.deleteRecursive(this.paths.appDependenciesDir);
-        await fs.mkdir(this.paths.appDependenciesDir, { recursive: true });
-        for (const e of Object.keys(appPkg.dependencies)) {
-            try {
-                const b = await rollup({
-                    input: `${this.paths.projectNodeModulesDir}${e}`,
-                    plugins: [nodeResolve({ preferBuiltins: true }), commonjs(), nodePolyfills()]
-                });
-                await b.write({
-                    format: 'es',
-                    entryFileNames: `${e}.js`,
-                    dir: this.paths.appDependenciesDir
-                });
-            } catch (error) {
-                console.error(`Error bundling ${e}:`, error);
-            }
-        }
-    }
-
-    async prod() {
         try {
             // Load package.json first
             await this.loadAppPackage();
@@ -294,9 +300,64 @@ class CommandHandler {
                 throw new MicrotasticError('Failed to load package.json', 'PACKAGE_JSON_ERROR');
             }
 
-            this.logger.debug('Starting production build...');
+            this.logger.info('Starting dependency preparation...');
 
-            // Clean and prepare directories
+            // Check if dependencies exist
+            if (!this.appPkg.dependencies || Object.keys(this.appPkg.dependencies).length === 0) {
+                this.logger.info('No dependencies found in package.json');
+                return;
+            }
+
+            // Clean and create dependencies directory
+            await FileManager.deleteRecursive(this.paths.appDependenciesDir);
+            await fs.mkdir(this.paths.appDependenciesDir, { recursive: true });
+            
+            // Process each dependency
+            for (const dep of Object.keys(this.appPkg.dependencies)) {
+                try {
+                    this.logger.info(`Processing dependency: ${dep}`);
+                    
+                    const bundle = await rollup({
+                        input: `${this.paths.projectNodeModulesDir}${dep}`,
+                        plugins: [
+                            nodeResolve({ preferBuiltins: true }), 
+                            commonjs(), 
+                            nodePolyfills()
+                        ]
+                    });
+
+                    await bundle.write({
+                        format: 'es',
+                        entryFileNames: `${dep}.js`,
+                        dir: this.paths.appDependenciesDir
+                    });
+
+                    await bundle.close();
+                    this.logger.success(`Successfully bundled ${dep}`);
+                } catch (error) {
+                    this.logger.error(`Error bundling ${dep}: ${error.message}`);
+                }
+            }
+
+            this.logger.success('Dependency preparation completed');
+        } catch (error) {
+            this.logger.error(`Prep failed: ${error.message}`);
+            if (this.settings.debug) {
+                console.error(error.stack);
+            }
+            throw error;
+        }
+    }
+
+    async prod() {
+        try {
+            this.logger.info('Starting production build...');
+
+            await this.loadAppPackage();
+            if (!this.appPkg) {
+                throw new MicrotasticError('Failed to load package.json', 'PACKAGE_JSON_ERROR');
+            }
+
             await FileManager.deleteRecursive(this.paths.publicDir);
             await FileManager.copyRecursive(
                 this.paths.appRootDir, 
@@ -304,8 +365,8 @@ class CommandHandler {
                 [path.basename(this.paths.appSrcDir)]
             );
 
-            // Bundle the application
-            this.logger.debug('Bundling application...');
+            this.logger.info('Bundling application...');
+
             const bundle = await rollup({
                 input: this.paths.appSrcEntryPath,
                 plugins: [
@@ -323,7 +384,6 @@ class CommandHandler {
 
             await bundle.close();
 
-            // Generate service worker if enabled
             if (this.settings.genServiceWorker) {
                 this.logger.debug('Generating service worker...');
                 const files = [];
@@ -374,11 +434,9 @@ class Microtastic {
     }
 
     async initialize() {
-        // First define base paths
         const projectDir = process.cwd();
         const microtasticDir = __dirname;
 
-        // Then build the complete paths object
         const paths = {
             projectDir,
             microtasticDir,
@@ -389,7 +447,6 @@ class Microtastic {
             appRootDir: path.join(projectDir, `/${DIRS.APP}/`),
         };
 
-        // Add derived paths that depend on the base paths
         paths.appSrcDir = path.join(paths.appRootDir, `/${DIRS.SRC}/`);
         paths.appSrcEntryPath = path.join(paths.appSrcDir, 'main.js');
         paths.appDependenciesDir = path.join(paths.appSrcDir, `${DIRS.DEPENDENCIES}/`);
@@ -399,9 +456,9 @@ class Microtastic {
         const settings = await this.loadSettings(paths.microtasticSettingsPath);
         
         return new CommandHandler({
-            logging: { 
-                silent: false, 
-                debug: process.env.DEBUG === 'true' 
+            logging: {
+                silent: process.env.SILENT === 'true',
+                debug: process.env.DEBUG === 'true'
             },
             settings,
             paths
@@ -416,7 +473,6 @@ class Microtastic {
             );
             return { ...DEFAULT_SETTINGS, ...loadedSettings };
         } catch (error) {
-            // If file doesn't exist, return default settings
             return DEFAULT_SETTINGS;
         }
     }
@@ -449,6 +505,5 @@ class Microtastic {
     }
 }
 
-// Entry point
 const cli = new Microtastic();
 cli.run();
