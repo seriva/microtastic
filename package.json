@@ -1,6 +1,6 @@
 {
 	"name": "microtastic",
-	"version": "0.0.34",
+	"version": "0.0.35",
 	"description": "Small tooling package for pure ES6 browser development.",
 	"main": "index.js",
 	"type": "module",
