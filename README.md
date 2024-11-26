@@ -34,22 +34,6 @@ npx microtastic init
 
 In the ```app/src/``` folder new code can be added with ```main.js``` as main entry point. Any other resources you need can be added as you fit in the ```app/``` directory.
 
-## How to add new dependencies
-
-1: Install the dependency like normal:
-
-```bash
-npm install <packagename>
-```
-
-2: Run ```prepare``` to rebuild the dependencies with:
-
-```bash
-npm run prepare
-```
-
-This will regenerate all dependencies and put them in the ```app/src/dependencies/``` folder ready for use.
-
 ## How to develop
 
 ```Microtastic``` has a build in development server which can be started with:
@@ -76,7 +60,7 @@ You can create a  ```.microtastic``` file in the root of your project and add an
 
 ```json
 {
-    "genServiceWorker": false, // Experimental feature that generates an offline-mode service worker. Mainly written for my Cubetatic project and will need additional code from the application side to work.
+    "genServiceWorker": false, // Experimental feature that generates an offline-mode service worker. Mainly written for my privatete projects and will need additional code from the application side to work.
     "minifyBuild": true, // If Rollup need to minimize the application
     "serverPort": 8181 // Port the debug server is running on.
 }
