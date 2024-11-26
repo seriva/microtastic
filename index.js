@@ -78,19 +78,19 @@ class Logger {
 
 class FileManager {
 	static async listRecursive(dir) {
-		const files = await fs.readdir(dir, { recursive: true, withFileTypes: true })
-			.catch(e => { throw new MicrotasticError(`Failed to list ${dir}: ${e.message}`, "LIST_ERROR"); });
-		return files
-			.filter(f => f.isFile())
-			.map(f => path.join(f.path, f.name).replace(`${dir}${path.sep}`, ""));
+		try {
+			const files = await fs.readdir(dir, { recursive: true, withFileTypes: true });
+			return files
+				.filter(f => f.isFile())
+				.map(f => path.join(f.path, f.name).replace(`${dir}${path.sep}`, ""));
+		} catch (e) {
+			throw new MicrotasticError(`Failed to list ${dir}: ${e.message}`, "LIST_ERROR");
+		}
 	}
 
 	static async deleteRecursive(dir) {
-		try {
-			await fs.rm(dir, { recursive: true, force: true });
-		} catch (e) {
-			throw new MicrotasticError(`Failed to delete ${dir}: ${e.message}`, "DELETE_ERROR");
-		}
+		await fs.rm(dir, { recursive: true, force: true })
+			.catch(e => { throw new MicrotasticError(`Failed to delete ${dir}: ${e.message}`, "DELETE_ERROR"); });
 	}
 
 	static async copyRecursive(src, dest, exclude = []) {
@@ -399,26 +399,15 @@ class Microtastic {
 	async run() {
 		try {
 			const command = process.argv[2]?.toLowerCase();
-			if (!command) {
-				throw new MicrotasticError("No command specified", "NO_COMMAND");
-			}
+			if (!command) throw new MicrotasticError("No command specified", "NO_COMMAND");
 
 			const handler = await this.initialize();
-
-			if (!(command in handler)) {
-				throw new MicrotasticError("Invalid command", "INVALID_COMMAND");
-			}
+			if (!(command in handler)) throw new MicrotasticError("Invalid command", "INVALID_COMMAND");
 
 			await handler[command]();
 		} catch (error) {
 			this.logger.error(error.message);
-			if (error instanceof MicrotasticError) {
-				process.exit(1);
-			}
-			if (process.env.DEBUG) {
-				console.error(error.stack);
-			}
-			process.exit(1);
+			process.exit(error instanceof MicrotasticError ? 1 : 2);
 		}
 	}
 }
