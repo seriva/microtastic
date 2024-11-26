@@ -65,7 +65,7 @@ Since pure ES6 is used you can open and debug the applications in the latest ver
 You can prepare the bundled application by running:
 
 ```bash
-npm run build
+npm run prod
 ```
 
 This will bundle and optimise your code and put the application ready to publish in the ```public/``` folder.
