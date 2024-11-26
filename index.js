@@ -17,18 +17,23 @@ const __dirname = dirname(__filename);
 
 const CONFIG = {
 	PORT: 8181,
-	DIRS: { APP: "app", PUBLIC: "public", SRC: "src", DEPENDENCIES: "dependencies" },
+	DIRS: {
+		APP: "app",
+		PUBLIC: "public",
+		SRC: "src",
+		DEPENDENCIES: "dependencies",
+	},
 	FILES: {
 		BUNDLE: "main.js",
 		BUNDLE_CHUNK: "main-[hash].js",
 		CONFIG: ".microtastic",
-		SW_TEMPLATE: "sw.tpl"
+		SW_TEMPLATE: "sw.tpl",
 	},
 	DEFAULTS: {
 		genServiceWorker: false,
 		minifyBuild: true,
-		serverPort: 8181
-	}
+		serverPort: 8181,
+	},
 };
 
 const MIME_TYPES = {
@@ -58,47 +63,75 @@ class MicrotasticError extends Error {
 }
 
 class Logger {
-	static #colors = { error: "\x1b[31m", success: "\x1b[32m", info: "\x1b[36m", reset: "\x1b[0m" };
-	
+	static #colors = {
+		error: "\x1b[31m",
+		success: "\x1b[32m",
+		info: "\x1b[36m",
+		reset: "\x1b[0m",
+	};
+
 	constructor(options = {}) {
 		this.silent = options.silent ?? false;
 		this.isDebug = options.debug ?? false;
 	}
 
-	#log = (msg, color) => !this.silent && console.log(color ? `${color}${msg}${Logger.#colors.reset}` : msg);
-	error = msg => this.#log(`ERROR: ${msg}`, Logger.#colors.error);
-	success = msg => this.#log(msg, Logger.#colors.success);
-	info = msg => this.#log(msg, Logger.#colors.info);
-	debug = msg => this.isDebug && this.#log(`DEBUG: ${msg}`);
+	#log = (msg, color) =>
+		!this.silent &&
+		console.log(color ? `${color}${msg}${Logger.#colors.reset}` : msg);
+	error = (msg) => this.#log(`ERROR: ${msg}`, Logger.#colors.error);
+	success = (msg) => this.#log(msg, Logger.#colors.success);
+	info = (msg) => this.#log(msg, Logger.#colors.info);
+	debug = (msg) => this.isDebug && this.#log(`DEBUG: ${msg}`);
 }
 
 class FileManager {
 	static async listRecursive(dir) {
 		try {
-			const files = await fs.readdir(dir, { recursive: true, withFileTypes: true });
+			const files = await fs.readdir(dir, {
+				recursive: true,
+				withFileTypes: true,
+			});
 			return files
-				.filter(f => f.isFile())
-				.map(f => path.join(f.path, f.name).replace(`${dir}${path.sep}`, ""));
+				.filter((f) => f.isFile())
+				.map((f) => path.join(f.path, f.name).replace(`${dir}${path.sep}`, ""));
 		} catch (e) {
-			throw new MicrotasticError(`Failed to list ${dir}: ${e.message}`, "LIST_ERROR");
+			throw new MicrotasticError(
+				`Failed to list ${dir}: ${e.message}`,
+				"LIST_ERROR",
+			);
 		}
 	}
 
 	static async deleteRecursive(dir) {
-		await fs.rm(dir, { recursive: true, force: true })
-			.catch(e => { throw new MicrotasticError(`Failed to delete ${dir}: ${e.message}`, "DELETE_ERROR"); });
+		await fs.rm(dir, { recursive: true, force: true }).catch((e) => {
+			throw new MicrotasticError(
+				`Failed to delete ${dir}: ${e.message}`,
+				"DELETE_ERROR",
+			);
+		});
 	}
 
 	static async copyRecursive(src, dest, exclude = []) {
 		if (exclude.includes(path.basename(src))) return;
-		await fs.cp(src, dest, {
-			recursive: true,
-			force: true,
-			filter: s => !exclude.includes(path.basename(s))
-		}).catch(e => { throw new MicrotasticError(`Failed to copy ${src} to ${dest}: ${e.message}`, "COPY_ERROR"); });
+		await fs
+			.cp(src, dest, {
+				recursive: true,
+				force: true,
+				filter: (s) => !exclude.includes(path.basename(s)),
+			})
+			.catch((e) => {
+				throw new MicrotasticError(
+					`Failed to copy ${src} to ${dest}: ${e.message}`,
+					"COPY_ERROR",
+				);
+			});
 	}
 
-	static checkExists = async p => fs.access(p).then(() => true).catch(() => false);
+	static checkExists = async (p) =>
+		fs
+			.access(p)
+			.then(() => true)
+			.catch(() => false);
 }
 
 class DevServer {
@@ -106,7 +139,10 @@ class DevServer {
 		res.statusCode = statusCode;
 		if (contentType) res.setHeader("Content-type", contentType);
 		res.end(content);
-		console.log(statusCode === 200 ? "\x1b[32m" : "\x1b[31m", `${req.method} ${statusCode} ${req.url}\x1b[0m`);
+		console.log(
+			statusCode === 200 ? "\x1b[32m" : "\x1b[31m",
+			`${req.method} ${statusCode} ${req.url}\x1b[0m`,
+		);
 	};
 
 	constructor(root, mimes) {
@@ -117,14 +153,31 @@ class DevServer {
 	createServer() {
 		return http.createServer(async (req, res) => {
 			try {
-				const pathname = path.join(this.root, new URL(req.url, `http://${req.headers.host}`).pathname);
+				const pathname = path.join(
+					this.root,
+					new URL(req.url, `http://${req.headers.host}`).pathname,
+				);
 				const stats = await fs.stat(pathname).catch(() => null);
-				
-				if (!stats) return this.#sendResponse(res, 404, `File ${pathname} not found`, req);
 
-				const finalPath = stats.isDirectory() ? path.join(pathname, "index.html") : pathname;
+				if (!stats)
+					return this.#sendResponse(
+						res,
+						404,
+						`File ${pathname} not found`,
+						req,
+					);
+
+				const finalPath = stats.isDirectory()
+					? path.join(pathname, "index.html")
+					: pathname;
 				const content = await fs.readFile(finalPath);
-				this.#sendResponse(res, 200, content, req, this.mimes[path.parse(finalPath).ext] || "text/plain");
+				this.#sendResponse(
+					res,
+					200,
+					content,
+					req,
+					this.mimes[path.parse(finalPath).ext] || "text/plain",
+				);
 			} catch (e) {
 				this.#sendResponse(res, 500, `Server error: ${e.message}`, req);
 			}
@@ -142,10 +195,15 @@ class CommandHandler {
 
 	async loadAppPackage() {
 		try {
-			this.appPkg = JSON.parse(await fs.readFile(this.paths.projectPkgPath, "utf8"));
+			this.appPkg = JSON.parse(
+				await fs.readFile(this.paths.projectPkgPath, "utf8"),
+			);
 			return this.appPkg;
 		} catch (error) {
-			throw new MicrotasticError(`Failed to load package.json: ${error.message}`, "PACKAGE_JSON_ERROR");
+			throw new MicrotasticError(
+				`Failed to load package.json: ${error.message}`,
+				"PACKAGE_JSON_ERROR",
+			);
 		}
 	}
 
@@ -197,7 +255,11 @@ class CommandHandler {
 	async prep() {
 		try {
 			await this.loadAppPackage();
-			if (!this.appPkg) throw new MicrotasticError("Failed to load package.json", "PACKAGE_JSON_ERROR");
+			if (!this.appPkg)
+				throw new MicrotasticError(
+					"Failed to load package.json",
+					"PACKAGE_JSON_ERROR",
+				);
 
 			this.logger.info("Starting dependency preparation...");
 
@@ -218,7 +280,7 @@ class CommandHandler {
 					nodeResolve({ preferBuiltins: true }),
 					commonjs(),
 					nodePolyfills(),
-				]
+				],
 			};
 
 			for (const dep of dependencies) {
@@ -226,7 +288,7 @@ class CommandHandler {
 					this.logger.info(`Processing dependency: ${dep}`);
 					const bundle = await rollup({
 						...bundleConfig,
-						input: `${this.paths.projectNodeModulesDir}${dep}`
+						input: `${this.paths.projectNodeModulesDir}${dep}`,
 					});
 
 					await bundle.write({
@@ -257,7 +319,10 @@ class CommandHandler {
 			// Load and validate package.json
 			await this.loadAppPackage();
 			if (!this.appPkg) {
-				throw new MicrotasticError("Failed to load package.json", "PACKAGE_JSON_ERROR");
+				throw new MicrotasticError(
+					"Failed to load package.json",
+					"PACKAGE_JSON_ERROR",
+				);
 			}
 
 			// Clean and prepare directories
@@ -265,7 +330,7 @@ class CommandHandler {
 			await FileManager.copyRecursive(
 				this.paths.appRootDir,
 				this.paths.publicDir,
-				[path.basename(this.paths.appSrcDir)]
+				[path.basename(this.paths.appSrcDir)],
 			);
 
 			// Bundle application
@@ -286,13 +351,16 @@ class CommandHandler {
 
 			// Generate service worker if enabled
 			if (this.settings.genServiceWorker) {
-				const swTemplate = await fs.readFile(path.join(__dirname, CONFIG.FILES.SW_TEMPLATE), "utf8");
+				const swTemplate = await fs.readFile(
+					path.join(__dirname, CONFIG.FILES.SW_TEMPLATE),
+					"utf8",
+				);
 				const files = await FileManager.listRecursive(CONFIG.DIRS.PUBLIC);
-				const renderTemplate = (template, data) => 
+				const renderTemplate = (template, data) =>
 					template.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? "");
 				const swContent = renderTemplate(swTemplate, {
 					cacheName: `${this.appPkg.name}-${this.appPkg.version}-${Date.now()}`,
-					cacheFiles: JSON.stringify(files, null, 4)
+					cacheFiles: JSON.stringify(files, null, 4),
 				});
 				await fs.writeFile(path.join(CONFIG.DIRS.PUBLIC, "sw.js"), swContent);
 			}
@@ -300,7 +368,7 @@ class CommandHandler {
 			// Log build completion time
 			const hrend = process.hrtime(this.hrstart);
 			this.logger.success(
-				`Build completed in ${hrend[0]}s ${Math.round(hrend[1] / 1000000)}ms`
+				`Build completed in ${hrend[0]}s ${Math.round(hrend[1] / 1000000)}ms`,
 			);
 		} catch (error) {
 			this.logger.error(`Build failed: ${error.message}`);
@@ -322,7 +390,7 @@ class Microtastic {
 	constructor() {
 		this.logger = new Logger({
 			silent: process.env.SILENT === "true",
-			debug: process.env.DEBUG === "true"
+			debug: process.env.DEBUG === "true",
 		});
 	}
 
@@ -336,10 +404,7 @@ class Microtastic {
 			projectNodeModulesDir: path.join(projectDir, "/node_modules/"),
 			projectPkgPath: path.join(projectDir, "/package.json"),
 			projectGitIgnorePath: path.join(projectDir, "/.gitignore"),
-			microtasticSettingsPath: path.join(
-				projectDir,
-				`/${CONFIG.FILES.CONFIG}`,
-			),
+			microtasticSettingsPath: path.join(projectDir, `/${CONFIG.FILES.CONFIG}`),
 			appRootDir: path.join(projectDir, `/${CONFIG.DIRS.APP}/`),
 		};
 
@@ -366,7 +431,9 @@ class Microtastic {
 
 	async loadSettings(settingsPath) {
 		try {
-			const loadedSettings = JSON.parse(await fs.readFile(settingsPath, "utf8"));
+			const loadedSettings = JSON.parse(
+				await fs.readFile(settingsPath, "utf8"),
+			);
 			return { ...CONFIG.DEFAULTS, ...loadedSettings };
 		} catch {
 			return CONFIG.DEFAULTS;
@@ -376,10 +443,12 @@ class Microtastic {
 	async run() {
 		try {
 			const command = process.argv[2]?.toLowerCase();
-			if (!command) throw new MicrotasticError("No command specified", "NO_COMMAND");
+			if (!command)
+				throw new MicrotasticError("No command specified", "NO_COMMAND");
 
 			const handler = await this.initialize();
-			if (!(command in handler)) throw new MicrotasticError("Invalid command", "INVALID_COMMAND");
+			if (!(command in handler))
+				throw new MicrotasticError("Invalid command", "INVALID_COMMAND");
 
 			await handler[command]();
 		} catch (error) {
