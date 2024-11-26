@@ -237,6 +237,7 @@ class CommandHandler {
 
 		appPkg.scripts.prepare = "microtastic prep";
 		appPkg.scripts.dev = "microtastic dev";
+		appPkg.scripts.dependencies = "microtastic prep";
 		appPkg.scripts.prod = "microtastic prod";
 		await fs.writeFile(
 			this.paths.projectPkgPath,
