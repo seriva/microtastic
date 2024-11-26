@@ -15,7 +15,6 @@ const hrstart = process.hrtime();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Simplify CONFIG object
 const CONFIG = {
 	PORT: 8181,
 	DIRS: { APP: "app", PUBLIC: "public", SRC: "src", DEPENDENCIES: "dependencies" },
@@ -58,7 +57,6 @@ class MicrotasticError extends Error {
 	}
 }
 
-// Simplify Logger class
 class Logger {
 	static #colors = { error: "\x1b[31m", success: "\x1b[32m", info: "\x1b[36m", reset: "\x1b[0m" };
 	
@@ -103,7 +101,6 @@ class FileManager {
 	static checkExists = async p => fs.access(p).then(() => true).catch(() => false);
 }
 
-// Simplify DevServer class
 class DevServer {
 	#sendResponse = (res, statusCode, content, req, contentType) => {
 		res.statusCode = statusCode;
@@ -135,7 +132,6 @@ class DevServer {
 	}
 }
 
-// Simplify CommandHandler class
 class CommandHandler {
 	constructor(options) {
 		this.logger = new Logger(options.logging);
@@ -183,7 +179,7 @@ class CommandHandler {
 
 		appPkg.scripts.prepare = "microtastic prep";
 		appPkg.scripts.dev = "microtastic dev";
-		appPkg.scripts.build = "microtastic prod";
+		appPkg.scripts.prod = "microtastic prod";
 		await fs.writeFile(
 			this.paths.projectPkgPath,
 			JSON.stringify(appPkg, undefined, 2),
@@ -322,7 +318,6 @@ class CommandHandler {
 	}
 }
 
-// Simplify Microtastic class
 class Microtastic {
 	constructor() {
 		this.logger = new Logger({
