@@ -1,10 +1,12 @@
 {
 	"name": "microtastic",
-	"version": "0.0.39",
+	"version": "0.0.40",
 	"description": "Small tooling package for pure ES6 browser development.",
 	"main": "index.js",
 	"type": "module",
-	"scripts": {},
+	"scripts": {
+		"lint": "biome check"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/seriva/microtastic.git"
