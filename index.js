@@ -15,7 +15,7 @@ const hrstart = process.hrtime();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Combine related constants into objects
+// Simplify CONFIG object
 const CONFIG = {
 	PORT: 8181,
 	DIRS: { APP: "app", PUBLIC: "public", SRC: "src", DEPENDENCIES: "dependencies" },
@@ -58,22 +58,20 @@ class MicrotasticError extends Error {
 	}
 }
 
+// Simplify Logger class
 class Logger {
-	static colors = { error: "\x1b[31m", success: "\x1b[32m", info: "\x1b[36m", reset: "\x1b[0m" };
+	static #colors = { error: "\x1b[31m", success: "\x1b[32m", info: "\x1b[36m", reset: "\x1b[0m" };
 	
-	constructor({ silent = false, debug = false } = {}) {
-		this.silent = silent;
-		this.isDebug = debug;
+	constructor(options = {}) {
+		this.silent = options.silent ?? false;
+		this.isDebug = options.debug ?? false;
 	}
 
-	#log(msg, color) {
-		!this.silent && console.log(color ? `${color}${msg}${Logger.colors.reset}` : msg);
-	}
-
-	error(msg) { this.#log(`ERROR: ${msg}`, Logger.colors.error); }
-	success(msg) { this.#log(msg, Logger.colors.success); }
-	info(msg) { this.#log(msg, Logger.colors.info); }
-	debug(msg) { this.isDebug && this.#log(`DEBUG: ${msg}`); }
+	#log = (msg, color) => !this.silent && console.log(color ? `${color}${msg}${Logger.#colors.reset}` : msg);
+	error = msg => this.#log(`ERROR: ${msg}`, Logger.#colors.error);
+	success = msg => this.#log(msg, Logger.#colors.success);
+	info = msg => this.#log(msg, Logger.#colors.info);
+	debug = msg => this.isDebug && this.#log(`DEBUG: ${msg}`);
 }
 
 class FileManager {
@@ -105,7 +103,15 @@ class FileManager {
 	static checkExists = async p => fs.access(p).then(() => true).catch(() => false);
 }
 
+// Simplify DevServer class
 class DevServer {
+	#sendResponse = (res, statusCode, content, req, contentType) => {
+		res.statusCode = statusCode;
+		if (contentType) res.setHeader("Content-type", contentType);
+		res.end(content);
+		console.log(statusCode === 200 ? "\x1b[32m" : "\x1b[31m", `${req.method} ${statusCode} ${req.url}\x1b[0m`);
+	};
+
 	constructor(root, mimes) {
 		this.root = root;
 		this.mimes = mimes;
@@ -117,55 +123,33 @@ class DevServer {
 				const pathname = path.join(this.root, new URL(req.url, `http://${req.headers.host}`).pathname);
 				const stats = await fs.stat(pathname).catch(() => null);
 				
-				if (!stats) {
-					this.#sendResponse(res, 404, `File ${pathname} not found`, req);
-					return;
-				}
+				if (!stats) return this.#sendResponse(res, 404, `File ${pathname} not found`, req);
 
 				const finalPath = stats.isDirectory() ? path.join(pathname, "index.html") : pathname;
 				const content = await fs.readFile(finalPath);
-				const contentType = this.mimes[path.parse(finalPath).ext] || "text/plain";
-				
-				this.#sendResponse(res, 200, content, req, contentType);
+				this.#sendResponse(res, 200, content, req, this.mimes[path.parse(finalPath).ext] || "text/plain");
 			} catch (e) {
 				this.#sendResponse(res, 500, `Server error: ${e.message}`, req);
 			}
 		});
 	}
-
-	#sendResponse(res, statusCode, content, req, contentType) {
-		const color = statusCode === 200 ? "\x1b[32m" : "\x1b[31m";
-		
-		res.statusCode = statusCode;
-		if (contentType) res.setHeader("Content-type", contentType);
-		res.end(content);
-		
-		console.log(color, `${req.method} ${statusCode} ${req.url}\x1b[0m`);
-	}
 }
 
+// Simplify CommandHandler class
 class CommandHandler {
 	constructor(options) {
-		this.logger = new Logger({
-			silent: options.logging?.silent || false,
-			debug: options.logging?.debug || false,
-		});
+		this.logger = new Logger(options.logging);
 		this.settings = options.settings;
 		this.paths = options.paths;
-		this.appPkg = null;
 		this.hrstart = process.hrtime();
 	}
 
 	async loadAppPackage() {
 		try {
-			const pkgContent = await fs.readFile(this.paths.projectPkgPath, "utf8");
-			this.appPkg = JSON.parse(pkgContent);
+			this.appPkg = JSON.parse(await fs.readFile(this.paths.projectPkgPath, "utf8"));
 			return this.appPkg;
 		} catch (error) {
-			throw new MicrotasticError(
-				`Failed to load package.json: ${error.message}`,
-				"PACKAGE_JSON_ERROR",
-			);
+			throw new MicrotasticError(`Failed to load package.json: ${error.message}`, "PACKAGE_JSON_ERROR");
 		}
 	}
 
@@ -338,11 +322,12 @@ class CommandHandler {
 	}
 }
 
+// Simplify Microtastic class
 class Microtastic {
 	constructor() {
 		this.logger = new Logger({
 			silent: process.env.SILENT === "true",
-			debug: process.env.DEBUG === "true",
+			debug: process.env.DEBUG === "true"
 		});
 	}
 
@@ -386,12 +371,9 @@ class Microtastic {
 
 	async loadSettings(settingsPath) {
 		try {
-			await fs.access(settingsPath);
-			const loadedSettings = JSON.parse(
-				await fs.readFile(settingsPath, "utf8"),
-			);
+			const loadedSettings = JSON.parse(await fs.readFile(settingsPath, "utf8"));
 			return { ...CONFIG.DEFAULTS, ...loadedSettings };
-		} catch (error) {
+		} catch {
 			return CONFIG.DEFAULTS;
 		}
 	}
