@@ -235,6 +235,7 @@ class CommandHandler {
 			[],
 		);
 
+		const appPkg = await this.loadAppPackage();
 		appPkg.scripts.prepare = "microtastic prep";
 		appPkg.scripts.dev = "microtastic dev";
 		appPkg.scripts.dependencies = "microtastic prep";
