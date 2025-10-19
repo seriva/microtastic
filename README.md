@@ -1,42 +1,58 @@
 ## About
 
-```Microtastic``` is a tiny (250 line) CLI tool to aid developing browser based applications in pure ES6 without the overtooling and dependency hell some tool chains introduce. Inspired by [Snowpack](https://www.snowpack.dev/) ```Microtastic``` is much lighter and simpler but more opinionated in project structure and how to use it.
+Microtastic is a tiny (250 line) CLI tool to aid developing browser based applications in pure ES6 without the overtooling and dependency hell some tool chains introduce. Inspired by [Snowpack](https://www.snowpack.dev/) Microtastic is much lighter and simpler but more opinionated in project structure and how to use it.
 
 Like [Snowpack](https://www.snowpack.dev/) it used [Rollup](https://rollupjs.org/) to convert CommonJS and multi-file ES6 modules to single-file ES6 modules. These can then be imported and used during development without the need for rebundling the application on every single change.
 
-Then when it is time to make the application production ready, [Rollup](https://rollupjs.org/) is used for bundling taking advantage of the threeshaking and dynamic imports it provides to slim down and carve up the code in smaller chunks.
+Then when it is time to make the application production ready, [Rollup](https://rollupjs.org/) is used for bundling taking advantage of the tree-shaking and dynamic imports it provides to slim down and carve up the code in smaller chunks.
 
-Since ```Microtastic``` only deals with ES6 code it works great with other JS only libraries like:
+Since Microtastic only deals with ES6 code it works great with other JS only libraries like:
 
 - [Mithril.js](https://mithril.js.org/)
 - [JSS](https://cssinjs.org/?v=v10.1.1)
 - [MaquetteJS](https://maquettejs.org/)
 
-## How to bootstrap a new application
+## Features
 
-1: Generate a new npm package/project:
+- **Lightweight**: Only 250 lines of code
+- **ES6 Native**: Pure ES6 development without complex toolchains
+- **Hot Reload**: Development server with automatic reloading
+- **Production Ready**: Optimized builds with tree-shaking
+- **Opinionated**: Simple project structure and workflow
 
+## Tech Stack
+
+- **Language**: JavaScript (ES6)
+- **Bundler**: Rollup
+- **Development**: Hot reload development server
+- **Build System**: Custom CLI tool
+- **Target**: Browser-based applications
+- **Dependencies**: Minimal external dependencies
+
+## Quick Start
+
+### Bootstrap a New Application
+
+1. Generate a new npm package/project:
 ```bash
 npm init
 ```
 
-2: Install ```Microtastic``` as a dev dependency:
-
+2. Install Microtastic as a dev dependency:
 ```bash
-npm install microtastic  --save-dev
+npm install microtastic --save-dev
 ```
 
-3: Run ```microtastic init``` to bootstrap the application template:
-
+3. Run `microtastic init` to bootstrap the application template:
 ```bash
 npx microtastic init
 ```
 
-In the ```app/src/``` folder new code can be added with ```main.js``` as main entry point. Any other resources you need can be added as you fit in the ```app/``` directory.
+In the `app/src/` folder new code can be added with `main.js` as main entry point. Any other resources you need can be added as you fit in the `app/` directory.
 
-## How to develop
+### Development
 
-```Microtastic``` has a build in development server which can be started with:
+Microtastic has a built-in development server which can be started with:
 
 ```bash
 npm run dev
@@ -44,7 +60,7 @@ npm run dev
 
 Since pure ES6 is used you can open and debug the applications in the latest versions of Chrome and Firefox or any other browser that supports the ES6 module standard.
 
-## How to build the production version of your app
+### Production Build
 
 You can prepare the bundled application by running:
 
@@ -52,11 +68,11 @@ You can prepare the bundled application by running:
 npm run prod
 ```
 
-This will bundle and optimise your code and put the application ready to publish in the ```public/``` folder.
+This will bundle and optimize your code and put the application ready to publish in the `public/` folder.
 
-## Advanced configuration
+## Configuration
 
-You can create a  ```.microtastic``` file in the root of your project and add and change the following configurations:
+You can create a `.microtastic` file in the root of your project and add and change the following configurations:
 
 ```json
 {
