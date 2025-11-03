@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import { promises as fs } from "node:fs";
 import http from "node:http";
-import path from "node:path";
-import { dirname } from "node:path";
+import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import commonjs from "@rollup/plugin-commonjs";
 import { nodeResolve } from "@rollup/plugin-node-resolve";
@@ -10,13 +9,10 @@ import terser from "@rollup/plugin-terser";
 import { rollup } from "rollup";
 import nodePolyfills from "rollup-plugin-polyfill-node";
 
-const hrstart = process.hrtime();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const CONFIG = {
-	PORT: 8181,
 	DIRS: {
 		APP: "app",
 		PUBLIC: "public",

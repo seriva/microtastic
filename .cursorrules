@@ -1,0 +1,80 @@
+# Microtastic Project Rules
+
+## Project Overview
+Microtastic is a small tooling package for pure ES6 browser development. It provides a CLI for bundling dependencies, running a dev server, and building production-ready applications.
+
+## Tech Stack
+- **Runtime**: Node.js (ES6 modules)
+- **Bundler**: Rollup with plugins (commonjs, node-resolve, terser, polyfill-node)
+- **Linter/Formatter**: Biome
+- **Language**: Modern JavaScript (ES6+)
+
+## Code Style & Conventions
+
+### Formatting
+- **Indentation**: Tabs (not spaces)
+- **Quotes**: Double quotes for strings
+- **Line endings**: Unix (LF)
+- Use Biome for all formatting and linting
+
+### JavaScript Conventions
+- Use ES6+ features (classes, arrow functions, async/await, destructuring)
+- Use `import`/`export` syntax (ES modules)
+- Prefer `const` over `let`, avoid `var`
+- Use template literals for string interpolation
+- Prefer functional array methods (`.map()`, `.filter()`, etc.)
+
+### Architecture
+- **Class-based design**: Use classes for logical groupings (Logger, FileManager, CommandHandler, etc.)
+- **Static methods**: Use for utility functions that don't need instance state
+- **Private methods**: Use `#` prefix for private class methods
+- **Error handling**: Use custom `MicrotasticError` class with error codes
+- **Async/await**: Prefer over `.then()` chains
+
+### Naming Conventions
+- **Classes**: PascalCase (e.g., `CommandHandler`, `FileManager`)
+- **Constants**: UPPER_SNAKE_CASE for config objects (e.g., `CONFIG`, `MIME_TYPES`)
+- **Variables/functions**: camelCase (e.g., `loadSettings`, `appPkg`)
+- **Private fields**: Prefix with `#` (e.g., `#log`, `#colors`)
+- **Unused variables**: Prefix with `_` if intentionally unused (but prefer removing them)
+
+### File Structure
+- Single entry point: `index.js`
+- Template files in `/template/`
+- Service worker template: `sw.tpl`
+
+### Error Handling
+- Throw `MicrotasticError` with descriptive messages and error codes
+- Log errors using the `Logger` class
+- Exit with appropriate codes (1 for known errors, 2 for unexpected)
+
+### Async Patterns
+- Use `async/await` consistently
+- Handle promise rejections with try/catch
+- Use `Promise.all()` for parallel operations when appropriate
+
+### Dependencies
+- Minimize external dependencies
+- Use built-in Node.js modules where possible (`node:fs`, `node:http`, `node:path`, `node:url`)
+
+## Commands & Scripts
+- `npm run lint` - Run Biome linter/formatter
+- Main CLI commands: `init`, `prep`, `dev`, `prod`, `version`
+
+## Best Practices
+- Keep functions focused and single-purpose
+- Use descriptive variable names
+- Add comments only when code intent isn't clear
+- Validate inputs early (fail fast)
+- Clean up resources (close bundles, etc.)
+- Use meaningful error messages
+
+## Testing
+- Manual testing via CLI commands
+- Test all commands: init, prep, dev, prod, version
+
+## Notes
+- This is a CLI tool, not a web application
+- Focus on developer experience and clear error messages
+- Keep the codebase simple and maintainable
+

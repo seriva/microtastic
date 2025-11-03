@@ -1,25 +1,25 @@
 {
 	"name": "microtastic",
-	"version": "0.0.45",
+	"version": "0.0.46",
 	"description": "Small tooling package for pure ES6 browser development.",
 	"main": "index.js",
 	"type": "module",
 	"scripts": {
-		"lint": "biome check"
+		"format": "biome format --write .",
+		"check": "biome check ."
 	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/seriva/microtastic.git"
 	},
-	"keywords": ["ES6"],
+	"keywords": [
+		"ES6"
+	],
 	"bin": {
 		"microtastic": "./index.js"
 	},
 	"dependencies": {
-		"@rollup/plugin-commonjs": "^28.0.2",
-		"@rollup/plugin-node-resolve": "^16.0.0",
 		"@rollup/plugin-terser": "^0.4.4",
-		"rollup": "^4.31.0",
 		"rollup-plugin-polyfill-node": "^0.13.0"
 	},
 	"author": "Luuk van Venrooij",
@@ -29,6 +29,9 @@
 	},
 	"homepage": "https://github.com/seriva/microtastic#readme",
 	"devDependencies": {
-		"@biomejs/biome": "^1.9.4"
+		"@biomejs/biome": "^2.3.2",
+		"@rollup/plugin-commonjs": "^29.0.0",
+		"@rollup/plugin-node-resolve": "^16.0.3",
+		"rollup": "^4.52.5"
 	}
 }
