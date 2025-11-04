@@ -1,0 +1,12 @@
+# Development files
+.github/
+.vscode/
+.cursorrules
+.gitignore
+
+# Dependencies
+node_modules/
+
+# Development configs
+biome.json
+
