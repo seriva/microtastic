@@ -45,6 +45,7 @@ const MIME_TYPES = {
 	".ogg": "audio/mpeg",
 	".mp4": "video/mp4",
 	".woff": "application/font-woff",
+	".woff2": "font/woff2",
 	".ttf": "application/font-ttf",
 	".eot": "application/vnd.ms-fontobject",
 	".otf": "application/font-otf",
@@ -128,6 +129,18 @@ class FileManager {
 			.access(p)
 			.then(() => true)
 			.catch(() => false);
+
+	static async copyFile(src, dest) {
+		try {
+			await fs.mkdir(path.dirname(dest), { recursive: true });
+			await fs.copyFile(src, dest);
+		} catch (e) {
+			throw new MicrotasticError(
+				`Failed to copy ${src} to ${dest}: ${e.message}`,
+				"COPY_FILE_ERROR",
+			);
+		}
+	}
 }
 
 class DevServer {
@@ -299,6 +312,23 @@ class CommandHandler {
 					this.logger.success(`Successfully bundled ${dep}`);
 				} catch (error) {
 					this.logger.error(`Error bundling ${dep}: ${error.message}`);
+				}
+			}
+
+			// Copy assets if assetCopy is defined
+			const assets = this.appPkg.assetCopy || [];
+			if (assets.length > 0) {
+				this.logger.info(`Copying ${assets.length} assets...`);
+				for (const asset of assets) {
+					try {
+						const { source, dest } = asset;
+						const srcPath = path.join(this.paths.projectDir, source);
+						const destPath = path.join(this.paths.projectDir, dest);
+						await FileManager.copyFile(srcPath, destPath);
+						this.logger.success(`Copied ${dest}`);
+					} catch (error) {
+						this.logger.error(`Failed to copy asset: ${error.message}`);
+					}
 				}
 			}
 
