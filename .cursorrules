@@ -62,6 +62,12 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - `npm test` - Run unit tests
 - Main CLI commands: `init`, `prep`, `dev`, `prod`, `version`
 
+## Hot Reload
+- DevServer supports hot reload via Server-Sent Events (SSE)
+- Configurable via `hotReload: true/false` in `.microtastic` (default: true)
+- Watches only the `app/` directory for file changes
+- Automatically reloads browser when files change
+
 ## Best Practices
 - Keep functions focused and single-purpose
 - Use descriptive variable names
@@ -73,7 +79,7 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 ## Testing
 - Unit tests in `/test/` directory using Node.js built-in test runner
 - Run tests with `npm test`
-- Test coverage: 35 tests covering all major classes (MicrotasticError, Logger, FileManager, DevServer, CommandHandler, Microtastic)
+- Test coverage: 40 tests covering all major classes (MicrotasticError, Logger, FileManager, DevServer, CommandHandler, Microtastic)
 - Manual testing via CLI commands: init, prep, dev, prod, version
 
 ## Notes

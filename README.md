@@ -81,7 +81,8 @@ You can create a `.microtastic` file in the root of your project and add and cha
 {
     "genServiceWorker": false, // Experimental feature that generates an offline-mode service worker. Mainly written for my privatete projects and will need additional code from the application side to work.
     "minifyBuild": true, // If Rollup need to minimize the application
-    "serverPort": 8181 // Port the debug server is running on.
+    "serverPort": 8181, // Port the debug server is running on.
+    "hotReload": true // Enable hot reload in development server. Automatically reloads the page when files in the app directory change.
 }
 ```
 
