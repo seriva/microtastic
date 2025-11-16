@@ -59,6 +59,7 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 
 ## Commands & Scripts
 - `npm run lint` - Run Biome linter/formatter
+- `npm test` - Run unit tests
 - Main CLI commands: `init`, `prep`, `dev`, `prod`, `version`
 
 ## Best Practices
@@ -70,8 +71,10 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - Use meaningful error messages
 
 ## Testing
-- Manual testing via CLI commands
-- Test all commands: init, prep, dev, prod, version
+- Unit tests in `/test/` directory using Node.js built-in test runner
+- Run tests with `npm test`
+- Test coverage: 35 tests covering all major classes (MicrotasticError, Logger, FileManager, DevServer, CommandHandler, Microtastic)
+- Manual testing via CLI commands: init, prep, dev, prod, version
 
 ## Notes
 - This is a CLI tool, not a web application

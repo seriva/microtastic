@@ -90,7 +90,14 @@ class FileManager {
 			});
 			return files
 				.filter((f) => f.isFile())
-				.map((f) => path.join(f.path, f.name).replace(`${dir}${path.sep}`, ""));
+				.map((f) => {
+					// parentPath is available in Node.js 20+, fallback to path for older versions
+					const filePath = f.parentPath || f.path || dir;
+					const fullPath = path.join(filePath, f.name);
+					const normalizedDir = path.resolve(dir);
+					const normalizedPath = path.resolve(fullPath);
+					return path.relative(normalizedDir, normalizedPath);
+				});
 		} catch (e) {
 			throw new MicrotasticError(
 				`Failed to list ${dir}: ${e.message}`,
@@ -486,5 +493,20 @@ class Microtastic {
 	}
 }
 
-const cli = new Microtastic();
-cli.run();
+// Export classes for testing
+export {
+	MicrotasticError,
+	Logger,
+	FileManager,
+	DevServer,
+	CommandHandler,
+	Microtastic,
+	CONFIG,
+	MIME_TYPES,
+};
+
+// Only run CLI if this is the main module
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+	const cli = new Microtastic();
+	cli.run();
+}

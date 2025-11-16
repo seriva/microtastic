@@ -80,6 +80,12 @@ throw new MicrotasticError(
 - `prod`: Build production bundle
 - `version`: Display version
 
+## Testing
+- Unit tests in `/test/` directory using Node.js built-in test runner
+- Run with `npm test`
+- 35 tests covering all major classes
+- Tests use Node.js built-in `node:test` module (no external dependencies)
+
 ## Best Practices
 1. Keep functions **focused and single-purpose**
 2. Use **descriptive variable names** (no abbreviations)

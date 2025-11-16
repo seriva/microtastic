@@ -17,7 +17,7 @@ Since Microtastic only deals with ES6 code it works great with other JS only lib
 - **Lightweight**: Only ~500 lines of code
 - **ES6 Native**: Pure ES6 development without complex toolchains
 - **Asset Management**: Automatic copying of fonts, CSS, and other assets from node_modules
-- **Hot Reload**: Development server with automatic reloading
+- **Simple Dev Server**: Lightweight development server for serving static files
 - **Production Ready**: Optimized builds with tree-shaking
 - **Opinionated**: Simple project structure and workflow
 
@@ -25,7 +25,7 @@ Since Microtastic only deals with ES6 code it works great with other JS only lib
 
 - **Language**: JavaScript (ES6)
 - **Bundler**: Rollup
-- **Development**: Hot reload development server
+- **Development**: Simple static file server
 - **Build System**: Custom CLI tool
 - **Target**: Browser-based applications
 - **Dependencies**: Minimal external dependencies
