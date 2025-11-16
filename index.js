@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { promises as fs } from "node:fs";
+import { promises as fs, realpathSync } from "node:fs";
 import http from "node:http";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -505,8 +505,16 @@ export {
 	MIME_TYPES,
 };
 
-// Only run CLI if this is the main module
-if (fileURLToPath(import.meta.url) === process.argv[1]) {
-	const cli = new Microtastic();
-	cli.run();
+// Only run CLI if this is the main module (not imported)
+try {
+	if (
+		process.argv[1] &&
+		realpathSync(process.argv[1]) ===
+			realpathSync(fileURLToPath(import.meta.url))
+	) {
+		const cli = new Microtastic();
+		cli.run();
+	}
+} catch {
+	// If realpathSync fails or process.argv[1] doesn't exist, skip (likely being imported)
 }
