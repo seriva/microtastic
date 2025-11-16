@@ -64,7 +64,7 @@ throw new MicrotasticError(
 - `MicrotasticError`: Custom error with error codes
 - `Logger`: Colored console output with debug mode
 - `FileManager`: Recursive file operations (list, delete, copy)
-- `DevServer`: HTTP server for development
+- `DevServer`: HTTP server for development with optional hot reload support
 - `CommandHandler`: Executes CLI commands (init, prep, dev, prod, version)
 - `Microtastic`: Main entry point, initializes paths and settings
 

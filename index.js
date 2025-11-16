@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { promises as fs, realpathSync } from "node:fs";
+import { promises as fs, realpathSync, watch } from "node:fs";
 import http from "node:http";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +29,7 @@ const CONFIG = {
 		genServiceWorker: false,
 		minifyBuild: true,
 		serverPort: 8181,
+		hotReload: true,
 	},
 };
 
@@ -161,14 +162,139 @@ class DevServer {
 		);
 	};
 
-	constructor(root, mimes) {
+	#clients = new Set();
+	#watcher = null;
+	#reloadTimeout = null;
+
+	constructor(root, mimes, enableHotReload = false, watchDir = null) {
 		this.root = root;
 		this.mimes = mimes;
+		this.enableHotReload = enableHotReload;
+		this.watchDir = watchDir;
+	}
+
+	#injectReloadScript(html) {
+		const reloadScript = `<script>
+(function() {
+	if (!window.EventSource) return;
+	const es = new EventSource('/__reload');
+	es.onmessage = function(e) {
+		if (e.data === 'reload') {
+			window.location.reload();
+		}
+	};
+	es.onerror = function() {
+		es.close();
+		setTimeout(function() {
+			window.location.reload();
+		}, 1000);
+	};
+})();
+</script>`;
+
+		if (html.includes("</body>")) {
+			return html.replace("</body>", `${reloadScript}</body>`);
+		}
+		if (html.includes("</head>")) {
+			return html.replace("</head>", `${reloadScript}</head>`);
+		}
+		return html + reloadScript;
+	}
+
+	watchFiles() {
+		if (!this.enableHotReload || !this.watchDir) return;
+
+		try {
+			this.#watcher = watch(
+				this.watchDir,
+				{ recursive: true },
+				(_eventType, filename) => {
+					if (!filename) return;
+
+					// Filter out irrelevant paths
+					const normalizedPath = path.normalize(filename);
+					if (
+						normalizedPath.includes("node_modules") ||
+						normalizedPath.includes(".git") ||
+						normalizedPath.includes("dependencies")
+					) {
+						return;
+					}
+
+					// Debounce rapid file changes
+					if (this.#reloadTimeout) {
+						clearTimeout(this.#reloadTimeout);
+					}
+
+					this.#reloadTimeout = setTimeout(() => {
+						this.#notifyClients();
+					}, 100);
+				},
+			);
+		} catch (error) {
+			console.error(`Failed to watch directory: ${error.message}`);
+		}
+	}
+
+	#notifyClients() {
+		for (const client of this.#clients) {
+			try {
+				client.write("data: reload\n\n");
+			} catch (_error) {
+				this.#clients.delete(client);
+			}
+		}
+	}
+
+	close() {
+		if (this.#watcher) {
+			this.#watcher.close();
+			this.#watcher = null;
+		}
+		if (this.#reloadTimeout) {
+			clearTimeout(this.#reloadTimeout);
+			this.#reloadTimeout = null;
+		}
+		for (const client of this.#clients) {
+			try {
+				client.end();
+			} catch {
+				// Ignore errors when closing
+			}
+		}
+		this.#clients.clear();
 	}
 
 	createServer() {
 		return http.createServer(async (req, res) => {
 			try {
+				// Handle SSE endpoint for hot reload
+				if (this.enableHotReload && req.url === "/__reload") {
+					res.writeHead(200, {
+						"Content-Type": "text/event-stream",
+						"Cache-Control": "no-cache",
+						Connection: "keep-alive",
+					});
+					this.#clients.add(res);
+
+					// Send keep-alive ping every 30 seconds
+					const keepAlive = setInterval(() => {
+						try {
+							res.write(": keep-alive\n\n");
+						} catch {
+							clearInterval(keepAlive);
+							this.#clients.delete(res);
+						}
+					}, 30000);
+
+					res.on("close", () => {
+						clearInterval(keepAlive);
+						this.#clients.delete(res);
+					});
+
+					return;
+				}
+
 				const pathname = path.join(
 					this.root,
 					new URL(req.url, `http://${req.headers.host}`).pathname,
@@ -186,7 +312,13 @@ class DevServer {
 				const finalPath = stats.isDirectory()
 					? path.join(pathname, "index.html")
 					: pathname;
-				const content = await fs.readFile(finalPath);
+				let content = await fs.readFile(finalPath);
+
+				// Inject reload script into HTML files if hot reload is enabled
+				if (this.enableHotReload && path.parse(finalPath).ext === ".html") {
+					content = Buffer.from(this.#injectReloadScript(content.toString()));
+				}
+
 				this.#sendResponse(
 					res,
 					200,
@@ -413,11 +545,38 @@ class CommandHandler {
 	}
 
 	dev() {
-		const server = new DevServer(this.paths.appRootDir, MIME_TYPES);
-		server.createServer().listen(this.settings.serverPort);
-		this.logger.success(
-			`Started dev server on localhost:${this.settings.serverPort}`,
+		const hotReload = this.settings.hotReload ?? CONFIG.DEFAULTS.hotReload;
+		const server = new DevServer(
+			this.paths.appRootDir,
+			MIME_TYPES,
+			hotReload,
+			this.paths.appRootDir,
 		);
+		const httpServer = server.createServer();
+		httpServer.listen(this.settings.serverPort);
+
+		if (hotReload) {
+			server.watchFiles();
+			this.logger.success(
+				`Started dev server on localhost:${this.settings.serverPort} (hot reload enabled)`,
+			);
+		} else {
+			this.logger.success(
+				`Started dev server on localhost:${this.settings.serverPort}`,
+			);
+		}
+
+		// Handle graceful shutdown
+		process.on("SIGINT", () => {
+			server.close();
+			httpServer.close();
+			process.exit(0);
+		});
+		process.on("SIGTERM", () => {
+			server.close();
+			httpServer.close();
+			process.exit(0);
+		});
 	}
 }
 

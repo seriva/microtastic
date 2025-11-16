@@ -190,3 +190,134 @@ test("DevServer should handle server errors gracefully", async () => {
 		});
 	});
 });
+
+test("DevServer should provide SSE endpoint when hot reload enabled", async () => {
+	const server = new DevServer(testDir, MIME_TYPES, true, testDir);
+	const httpServer = server.createServer();
+
+	return new Promise((resolve, reject) => {
+		httpServer.listen(0, async () => {
+			const port = httpServer.address().port;
+			const consoleSpy = mock.method(console, "log", () => {});
+
+			const req = http.get(`http://localhost:${port}/__reload`, (res) => {
+				assert.strictEqual(res.statusCode, 200);
+				assert.strictEqual(res.headers["content-type"], "text/event-stream");
+				assert.strictEqual(res.headers["cache-control"], "no-cache");
+				consoleSpy.mock.restore();
+				httpServer.close();
+				server.close();
+				resolve();
+			});
+
+			req.on("error", (err) => {
+				consoleSpy.mock.restore();
+				httpServer.close();
+				server.close();
+				reject(err);
+			});
+		});
+	});
+});
+
+test("DevServer should inject reload script in HTML when hot reload enabled", async () => {
+	const testFile = path.join(testDir, "test.html");
+	await fs.writeFile(testFile, "<html><body>test</body></html>");
+
+	const server = new DevServer(testDir, MIME_TYPES, true, testDir);
+	const httpServer = server.createServer();
+
+	return new Promise((resolve, reject) => {
+		httpServer.listen(0, async () => {
+			const port = httpServer.address().port;
+			const consoleSpy = mock.method(console, "log", () => {});
+
+			const req = http.get(`http://localhost:${port}/test.html`, (res) => {
+				assert.strictEqual(res.statusCode, 200);
+
+				let data = "";
+				res.on("data", (chunk) => {
+					data += chunk;
+				});
+				res.on("end", () => {
+					assert.ok(data.includes("EventSource"));
+					assert.ok(data.includes("/__reload"));
+					assert.ok(data.includes("window.location.reload"));
+					consoleSpy.mock.restore();
+					httpServer.close();
+					server.close();
+					resolve();
+				});
+			});
+
+			req.on("error", (err) => {
+				consoleSpy.mock.restore();
+				httpServer.close();
+				server.close();
+				reject(err);
+			});
+		});
+	});
+});
+
+test("DevServer should not inject reload script when hot reload disabled", async () => {
+	const testFile = path.join(testDir, "test.html");
+	await fs.writeFile(testFile, "<html><body>test</body></html>");
+
+	const server = new DevServer(testDir, MIME_TYPES, false);
+	const httpServer = server.createServer();
+
+	return new Promise((resolve, reject) => {
+		httpServer.listen(0, async () => {
+			const port = httpServer.address().port;
+			const consoleSpy = mock.method(console, "log", () => {});
+
+			const req = http.get(`http://localhost:${port}/test.html`, (res) => {
+				assert.strictEqual(res.statusCode, 200);
+
+				let data = "";
+				res.on("data", (chunk) => {
+					data += chunk;
+				});
+				res.on("end", () => {
+					assert.ok(!data.includes("EventSource"));
+					assert.ok(!data.includes("/__reload"));
+					consoleSpy.mock.restore();
+					httpServer.close();
+					resolve();
+				});
+			});
+
+			req.on("error", (err) => {
+				consoleSpy.mock.restore();
+				httpServer.close();
+				reject(err);
+			});
+		});
+	});
+});
+
+test("DevServer should return 404 for SSE endpoint when hot reload disabled", async () => {
+	const server = new DevServer(testDir, MIME_TYPES, false);
+	const httpServer = server.createServer();
+
+	return new Promise((resolve, reject) => {
+		httpServer.listen(0, async () => {
+			const port = httpServer.address().port;
+			const consoleSpy = mock.method(console, "log", () => {});
+
+			const req = http.get(`http://localhost:${port}/__reload`, (res) => {
+				assert.strictEqual(res.statusCode, 404);
+				consoleSpy.mock.restore();
+				httpServer.close();
+				resolve();
+			});
+
+			req.on("error", (err) => {
+				consoleSpy.mock.restore();
+				httpServer.close();
+				reject(err);
+			});
+		});
+	});
+});
