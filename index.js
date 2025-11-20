@@ -299,19 +299,38 @@ class DevServer {
 					this.root,
 					new URL(req.url, `http://${req.headers.host}`).pathname,
 				);
-				const stats = await fs.stat(pathname).catch(() => null);
+				let stats = await fs.stat(pathname).catch(() => null);
 
-				if (!stats)
-					return this.#sendResponse(
-						res,
-						404,
-						`File ${pathname} not found`,
-						req,
-					);
-
-				const finalPath = stats.isDirectory()
-					? path.join(pathname, "index.html")
-					: pathname;
+				// SPA fallback: if file not found and no extension, serve index.html
+				let finalPath;
+				if (!stats) {
+					const ext = path.extname(pathname);
+					if (!ext || ext === ".html") {
+						// No extension or .html - try index.html fallback for SPA routing
+						finalPath = path.join(this.root, "index.html");
+						stats = await fs.stat(finalPath).catch(() => null);
+						if (!stats) {
+							return this.#sendResponse(
+								res,
+								404,
+								`File ${pathname} not found`,
+								req,
+							);
+						}
+					} else {
+						// Has extension (like .js, .css) - it's a real 404
+						return this.#sendResponse(
+							res,
+							404,
+							`File ${pathname} not found`,
+							req,
+						);
+					}
+				} else {
+					finalPath = stats.isDirectory()
+						? path.join(pathname, "index.html")
+						: pathname;
+				}
 				let content = await fs.readFile(finalPath);
 
 				// Inject reload script into HTML files if hot reload is enabled
