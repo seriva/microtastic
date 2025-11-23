@@ -38,6 +38,7 @@
 	"homepage": "https://github.com/seriva/microtastic#readme",
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.5",
-		"husky": "^9.1.7"
+		"husky": "^9.1.7",
+		"jsdom": "^24.0.0"
 	}
 }
