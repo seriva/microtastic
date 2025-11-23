@@ -1,8 +1,8 @@
 // Test reactive system - Signals and Reactive utilities
-import { describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { describe, test } from "node:test";
 import "./setup.js";
-import { Signals, Reactive, html } from "../reactive.js";
+import { html, Reactive, Signals } from "../reactive.js";
 
 describe("Signals", () => {
 	test("should create signal with initial value", () => {
