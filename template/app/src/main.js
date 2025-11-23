@@ -1,13 +1,13 @@
-import { Reactive, html, css } from 'microtastic/reactive';
+import { Reactive, html, css } from "microtastic/reactive";
 
 class App extends Reactive.Component {
 	state() {
 		return {
 			count: 0,
-			name: "World"
+			name: "World",
 		};
 	}
-	
+
 	styles() {
 		return css`
 			max-width: 600px;
@@ -52,7 +52,7 @@ class App extends Reactive.Component {
 			}
 		`;
 	}
-	
+
 	template() {
 		return html`
 			<div>
@@ -78,15 +78,15 @@ class App extends Reactive.Component {
 			</div>
 		`;
 	}
-	
+
 	increment() {
-		this.count.update(n => n + 1);
+		this.count.update((n) => n + 1);
 	}
-	
+
 	decrement() {
-		this.count.update(n => n - 1);
+		this.count.update((n) => n - 1);
 	}
-	
+
 	reset() {
 		this.count.set(0);
 	}

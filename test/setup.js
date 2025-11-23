@@ -11,4 +11,3 @@ global.window = dom.window;
 global.document = dom.window.document;
 global.Event = dom.window.Event;
 global.HTMLElement = dom.window.HTMLElement;
-

@@ -29,7 +29,7 @@ test("DevServer should create server instance and return HTTP server", async () 
 
 	const httpServer = server.createServer();
 	assert.ok(httpServer instanceof http.Server);
-	
+
 	return new Promise((resolve) => {
 		httpServer.close(() => resolve());
 	});
