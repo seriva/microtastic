@@ -1,6 +1,6 @@
 {
 	"name": "microtastic",
-	"version": "0.0.52",
+	"version": "0.0.53",
 	"description": "Small tooling package for pure ES6 browser development.",
 	"main": "index.js",
 	"type": "module",
@@ -19,6 +19,9 @@
 	],
 	"bin": {
 		"microtastic": "index.js"
+	},
+	"exports": {
+		"./reactive": "./reactive.js"
 	},
 	"dependencies": {
 		"@rollup/plugin-commonjs": "^29.0.0",
