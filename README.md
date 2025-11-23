@@ -456,7 +456,7 @@ class Counter extends Reactive.Component {
 	template() {
 		return html`
 			<div>
-				<h2>${this.label.get()}: ${this.count.get()}</h2>
+				<h2><span data-text="label"></span>: <span data-text="count"></span></h2>
 				<button data-on-click="increment">+</button>
 				<button data-on-click="decrement">-</button>
 			</div>
@@ -510,7 +510,7 @@ const count = Signals.create(0);
 
 const app = () => html`
 	<div>
-		<h1>Count: ${count.get()}</h1>
+		<h1>Count: <span data-text="count"></span></h1>
 		<button data-on-click=${() => count.update(n => n + 1)}>
 			Increment
 		</button>

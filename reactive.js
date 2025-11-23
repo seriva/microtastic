@@ -376,6 +376,7 @@ export const Reactive = {
 	Component: class {
 		constructor() {
 			this._c = Reactive.createComponent();
+			this.refs = {};
 			for (const m of [
 				"bind",
 				"bindAttr",
