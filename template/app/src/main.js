@@ -1,4 +1,4 @@
-import { Reactive, html, css } from "microtastic/reactive";
+import { css, html, Reactive } from "microtastic/reactive";
 
 class App extends Reactive.Component {
 	state() {
