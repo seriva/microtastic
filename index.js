@@ -405,7 +405,10 @@ class CommandHandler {
 		// Copy reactive.js to app/src so it can be imported in the browser
 		await FileManager.copyFile(
 			path.join(this.paths.microtasticDir, "/reactive.js"),
-			path.join(this.paths.projectDir, `/${CONFIG.DIRS.APP}/${CONFIG.DIRS.SRC}/reactive.js`),
+			path.join(
+				this.paths.projectDir,
+				`/${CONFIG.DIRS.APP}/${CONFIG.DIRS.SRC}/reactive.js`,
+			),
 		);
 
 		const appPkg = await this.loadAppPackage();
