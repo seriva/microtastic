@@ -85,7 +85,7 @@ describe("Computed Signals", () => {
 		const firstName = Signals.create("John");
 		const lastName = Signals.create("Doe");
 		const fullName = Signals.computed(
-			() => `${firstName.get()} ${lastName.get()}`
+			() => `${firstName.get()} ${lastName.get()}`,
 		);
 
 		assert.equal(fullName.get(), "John Doe");
@@ -177,7 +177,10 @@ describe("Reactive.mount", () => {
 	test("should update on manual call", () => {
 		const div = document.createElement("div");
 		let counter = 0;
-		const component = Reactive.mount(div, () => html`<span>Count: ${counter}</span>`);
+		const component = Reactive.mount(
+			div,
+			() => html`<span>Count: ${counter}</span>`,
+		);
 
 		component.update();
 		assert.equal(div.innerHTML, "<span>Count: 0</span>");
@@ -298,7 +301,9 @@ describe("Reactive.bindClass", () => {
 		// Test data-on-*
 		let clicked = false;
 		const scope = {
-			handleClick: () => { clicked = true; }
+			handleClick: () => {
+				clicked = true;
+			},
 		};
 
 		div.setAttribute("data-on-click", "handleClick");
@@ -327,7 +332,7 @@ describe("Reactive.scan", () => {
 			user: { name: Signals.create("Alice") },
 			isDisabled: Signals.create(true),
 			tooltip: Signals.create("Click me"),
-			isActive: Signals.create(false)
+			isActive: Signals.create(false),
 		};
 
 		const component = Reactive.createComponent();
@@ -375,7 +380,7 @@ describe("Reactive.scan", () => {
 				return {
 					count: 0,
 					name: "John",
-					isActive: true
+					isActive: true,
 				};
 			}
 		}
@@ -401,7 +406,7 @@ describe("Reactive.scan", () => {
 				return {
 					firstName: "John",
 					lastName: "Doe",
-					fullName: () => `${this.firstName.get()} ${this.lastName.get()}`
+					fullName: () => `${this.firstName.get()} ${this.lastName.get()}`,
 				};
 			}
 		}
@@ -424,13 +429,13 @@ describe("Reactive.scan", () => {
 					// Plain nested object becomes a single signal
 					user: {
 						name: "Alice",
-						age: 30
+						age: 30,
 					},
 					// Explicit nested signals
 					settings: {
 						theme: this.signal("dark"),
-						notifications: this.signal(true)
-					}
+						notifications: this.signal(true),
+					},
 				};
 			}
 		}
@@ -650,7 +655,7 @@ describe("Reactive.createComponent", () => {
 				count.set(1);
 				count.set(2);
 				count.set(3);
-			}
+			},
 		};
 
 		button.setAttribute("data-on-click", "handleClick");
@@ -660,7 +665,11 @@ describe("Reactive.createComponent", () => {
 		button.click();
 
 		assert.equal(count.get(), 3);
-		assert.equal(notifications, 1, "Should only notify once due to auto-batching");
+		assert.equal(
+			notifications,
+			1,
+			"Should only notify once due to auto-batching",
+		);
 
 		cleanup();
 	});
@@ -700,4 +709,3 @@ describe("Signals.batch", () => {
 		assert.equal(updates, 1, "Should update only once");
 	});
 });
-
