@@ -182,13 +182,13 @@ Microtastic includes **reactive.js**, a lightweight signals-based reactive state
 **Quick Start:**
 
 ```javascript
-import { Signals, Reactive, html, css } from 'microtastic/reactive';
+import { Signals, Reactive, html, css } from './reactive.js';
 ```
 
 For detailed examples, see the [Examples](#examples) section below.
 
 ```javascript
-import { Signals, Reactive, html, css } from 'microtastic/reactive';
+import { Signals, Reactive, html, css } from './reactive.js';
 ```
 
 ### Signals
@@ -273,7 +273,7 @@ const template = html`
 Marks content as trusted (bypasses escaping). Use with caution!
 
 ```javascript
-import { html, trusted } from 'microtastic/reactive';
+import { html, trusted } from './reactive.js';
 
 const safeHtml = trusted("<strong>Bold</strong>");
 const template = html`<div>${safeHtml}</div>`;
@@ -284,7 +284,7 @@ const template = html`<div>${safeHtml}</div>`;
 Joins an array of items (which can include `html` templates) with optional separator.
 
 ```javascript
-import { html, join } from 'microtastic/reactive';
+import { html, join } from './reactive.js';
 
 const items = [
 	html`<li>Item 1</li>`,
@@ -504,7 +504,7 @@ counter.mountTo("app");
 #### Simple Counter
 
 ```javascript
-import { Signals, Reactive, html } from 'microtastic/reactive';
+import { Signals, Reactive, html } from './reactive.js';
 
 const count = Signals.create(0);
 
@@ -527,7 +527,7 @@ Reactive.mount(document.body, app);
 #### Todo List
 
 ```javascript
-import { Signals, Reactive, html, join } from 'microtastic/reactive';
+import { Signals, Reactive, html, join } from './reactive.js';
 
 const todos = Signals.create([]);
 const newTodo = Signals.create("");
@@ -582,7 +582,7 @@ Reactive.mount(document.body, app);
 #### Component Example
 
 ```javascript
-import { Reactive, html, css } from 'microtastic/reactive';
+import { Reactive, html, css } from './reactive.js';
 
 class UserCard extends Reactive.Component {
 	constructor(user) {
