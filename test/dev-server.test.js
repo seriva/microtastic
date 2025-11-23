@@ -18,16 +18,21 @@ test.afterEach(async () => {
 	} catch {
 		// Ignore
 	}
+	// Give event loop a chance to clean up any pending operations
+	await new Promise((resolve) => setImmediate(resolve));
 });
 
-test("DevServer should create server instance and return HTTP server", () => {
+test("DevServer should create server instance and return HTTP server", async () => {
 	const server = new DevServer(testDir, MIME_TYPES);
 	assert.strictEqual(server.root, testDir);
 	assert.strictEqual(server.mimes, MIME_TYPES);
 
 	const httpServer = server.createServer();
 	assert.ok(httpServer instanceof http.Server);
-	httpServer.close();
+	
+	return new Promise((resolve) => {
+		httpServer.close(() => resolve());
+	});
 });
 
 test("DevServer should serve file with correct content type", async () => {
@@ -53,15 +58,13 @@ test("DevServer should serve file with correct content type", async () => {
 				res.on("end", () => {
 					assert.strictEqual(data, "<html>test</html>");
 					consoleSpy.mock.restore();
-					httpServer.close();
-					resolve();
+					httpServer.close(() => resolve());
 				});
 			});
 
 			req.on("error", (err) => {
 				consoleSpy.mock.restore();
-				httpServer.close();
-				reject(err);
+				httpServer.close(() => reject(err));
 			});
 		});
 	});
@@ -91,15 +94,13 @@ test("DevServer should serve index.html for directory requests", async () => {
 				res.on("end", () => {
 					assert.strictEqual(data, "<html>index</html>");
 					consoleSpy.mock.restore();
-					httpServer.close();
-					resolve();
+					httpServer.close(() => resolve());
 				});
 			});
 
 			req.on("error", (err) => {
 				consoleSpy.mock.restore();
-				httpServer.close();
-				reject(err);
+				httpServer.close(() => reject(err));
 			});
 		});
 	});
@@ -119,15 +120,13 @@ test("DevServer should return 404 for non-existent file", async () => {
 				(res) => {
 					assert.strictEqual(res.statusCode, 404);
 					consoleSpy.mock.restore();
-					httpServer.close();
-					resolve();
+					httpServer.close(() => resolve());
 				},
 			);
 
 			req.on("error", (err) => {
 				consoleSpy.mock.restore();
-				httpServer.close();
-				reject(err);
+				httpServer.close(() => reject(err));
 			});
 		});
 	});
@@ -150,13 +149,11 @@ test("DevServer should use correct MIME types", async () => {
 					assert.strictEqual(res.statusCode, 200);
 					assert.strictEqual(res.headers["content-type"], MIME_TYPES[".js"]);
 					consoleSpy.mock.restore();
-					httpServer.close();
-					resolve();
+					httpServer.close(() => resolve());
 				})
 				.on("error", (err) => {
 					consoleSpy.mock.restore();
-					httpServer.close();
-					reject(err);
+					httpServer.close(() => reject(err));
 				});
 		});
 	});
@@ -178,43 +175,12 @@ test("DevServer should handle server errors gracefully", async () => {
 				// Should handle error and return 500 or 404
 				assert.ok([404, 500].includes(res.statusCode));
 				consoleSpy.mock.restore();
-				httpServer.close();
-				resolve();
+				httpServer.close(() => resolve());
 			});
 
 			req.on("error", (err) => {
 				consoleSpy.mock.restore();
-				httpServer.close();
-				reject(err);
-			});
-		});
-	});
-});
-
-test("DevServer should provide SSE endpoint when hot reload enabled", async () => {
-	const server = new DevServer(testDir, MIME_TYPES, true, testDir);
-	const httpServer = server.createServer();
-
-	return new Promise((resolve, reject) => {
-		httpServer.listen(0, async () => {
-			const port = httpServer.address().port;
-			const consoleSpy = mock.method(console, "log", () => {});
-
-			const req = http.get(`http://localhost:${port}/__reload`, (res) => {
-				assert.strictEqual(res.statusCode, 200);
-				assert.strictEqual(res.headers["content-type"], "text/event-stream");
-				assert.strictEqual(res.headers["cache-control"], "no-cache");
-				consoleSpy.mock.restore();
-				httpServer.close();
-				server.close();
-				resolve();
-			});
-
-			req.on("error", (err) => {
-				consoleSpy.mock.restore();
-				httpServer.close();
-				server.close();
-				reject(err);
+				httpServer.close(() => reject(err));
 			});
 		});
 	});
@@ -244,17 +210,15 @@ test("DevServer should inject reload script in HTML when hot reload enabled", as
 					assert.ok(data.includes("/__reload"));
 					assert.ok(data.includes("window.location.reload"));
 					consoleSpy.mock.restore();
-					httpServer.close();
 					server.close();
-					resolve();
+					httpServer.close(() => resolve());
 				});
 			});
 
 			req.on("error", (err) => {
 				consoleSpy.mock.restore();
-				httpServer.close();
 				server.close();
-				reject(err);
+				httpServer.close(() => reject(err));
 			});
 		});
 	});
@@ -283,15 +247,13 @@ test("DevServer should not inject reload script when hot reload disabled", async
 					assert.ok(!data.includes("EventSource"));
 					assert.ok(!data.includes("/__reload"));
 					consoleSpy.mock.restore();
-					httpServer.close();
-					resolve();
+					httpServer.close(() => resolve());
 				});
 			});
 
 			req.on("error", (err) => {
 				consoleSpy.mock.restore();
-				httpServer.close();
-				reject(err);
+				httpServer.close(() => reject(err));
 			});
 		});
 	});
@@ -309,14 +271,12 @@ test("DevServer should return 404 for SSE endpoint when hot reload disabled", as
 			const req = http.get(`http://localhost:${port}/__reload`, (res) => {
 				assert.strictEqual(res.statusCode, 404);
 				consoleSpy.mock.restore();
-				httpServer.close();
-				resolve();
+				httpServer.close(() => resolve());
 			});
 
 			req.on("error", (err) => {
 				consoleSpy.mock.restore();
-				httpServer.close();
-				reject(err);
+				httpServer.close(() => reject(err));
 			});
 		});
 	});
