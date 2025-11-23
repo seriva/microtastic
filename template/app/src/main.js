@@ -56,11 +56,11 @@ class App extends Reactive.Component {
 	template() {
 		return html`
 			<div>
-				<h1>Hello, ${this.name.get()}!</h1>
+				<h1>Hello, <span data-text="name"></span>!</h1>
 				<p>Welcome to your Microtastic application with reactive.js</p>
 				
 				<div class="counter">
-					<h2>Counter: ${this.count.get()}</h2>
+					<h2>Counter: <span data-text="count"></span></h2>
 					<button data-on-click="increment">Increment</button>
 					<button data-on-click="decrement">Decrement</button>
 					<button data-on-click="reset">Reset</button>
