@@ -185,7 +185,7 @@ You can create a `.microtastic` file in the root of your project and add and cha
 
 ### Asset Copying
 
-Microtastic can automatically copy assets (fonts, CSS files, images, etc.) from `node_modules` to your app directory during the `prep` phase. Add an `assetCopy` array to your `package.json`:
+Microtastic can automatically copy assets (fonts, CSS files, images, directories, etc.) from `node_modules` to your app directory during the `prep` phase. Add an `assetCopy` array to your `package.json`:
 
 ```json
 {
@@ -197,14 +197,22 @@ Microtastic can automatically copy assets (fonts, CSS files, images, etc.) from 
     {
       "source": "node_modules/prismjs/themes/prism.min.css",
       "dest": "app/css/prism-themes/prism.min.css"
+    },
+    {
+      "source": "node_modules/some-package/assets",
+      "dest": "app/vendor/some-package-assets"
     }
   ]
 }
 ```
 
 Each asset entry requires:
-- **source**: Path to the file in `node_modules` (relative to project root)
+- **source**: Path to the file or directory in `node_modules` (relative to project root)
 - **dest**: Destination path in your app (relative to project root)
+
+**Supported operations:**
+- **Files**: Individual files are copied to the destination path
+- **Directories**: Entire directories are copied recursively to the destination path
 
 Assets are copied when running `npm run prepare` or `microtastic prep`. Destination directories are created automatically if they don't exist.
 

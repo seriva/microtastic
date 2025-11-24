@@ -527,8 +527,20 @@ class CommandHandler {
 						const { source, dest } = asset;
 						const srcPath = path.join(this.paths.projectDir, source);
 						const destPath = path.join(this.paths.projectDir, dest);
-						await FileManager.copyFile(srcPath, destPath);
-						this.logger.success(`Copied ${dest}`);
+
+						// Check if source is a directory or file
+						const stats = await fs.stat(srcPath).catch(() => null);
+						if (!stats) {
+							throw new Error(`Source path does not exist: ${source}`);
+						}
+
+						if (stats.isDirectory()) {
+							await FileManager.copyRecursive(srcPath, destPath, []);
+							this.logger.success(`Copied directory ${dest}`);
+						} else {
+							await FileManager.copyFile(srcPath, destPath);
+							this.logger.success(`Copied ${dest}`);
+						}
 					} catch (error) {
 						this.logger.error(`Failed to copy asset: ${error.message}`);
 					}
