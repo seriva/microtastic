@@ -9,4 +9,5 @@ node_modules/
 
 # Development configs
 biome.json
+!template/biome.json
 

@@ -406,6 +406,12 @@ class CommandHandler {
 			[],
 		);
 
+		// Ensure root biome.json exists even if template copy skips dotfiles in some environments
+		await FileManager.copyFile(
+			path.join(this.paths.microtasticDir, "/template/biome.json"),
+			path.join(this.paths.projectDir, "/biome.json"),
+		);
+
 		// Copy reactive.js to app/src so it can be imported in the browser
 		await FileManager.copyFile(
 			path.join(this.paths.microtasticDir, "/reactive.js"),
