@@ -15,6 +15,8 @@ Microtastic includes **reactive.js**, a signals-based reactive state management 
 - **Simple Dev Server**: Lightweight development server for serving static files
 - **Production Ready**: Optimized builds with tree-shaking and code-splitting
 - **Reactive Framework**: Built-in signals-based reactive state management
+- **Code Quality**: Biome linter and formatter installed by default
+- **Dev Container**: VS Code devcontainer configuration included for consistent development environment
 - **Opinionated**: Simple project structure and workflow
 
 **Tech Stack:**
@@ -45,7 +47,10 @@ The `init` command creates a project structure with:
 - `app/src/main.js` - Your application entry point
 - `app/index.html` - HTML template
 - `.microtastic` - Configuration file
+- `biome.json` - Biome linter and formatter configuration
+- `.devcontainer/` - VS Code devcontainer setup for consistent development environment
 - Adds necessary npm scripts to `package.json`
+- Installs `@biomejs/biome` as a dev dependency for linting and code quality
 
 You can add your code in `app/src/` with `main.js` as the main entry point. Any other resources (CSS, images, etc.) can be added anywhere in the `app/` directory.
 
@@ -92,6 +97,41 @@ This command:
 
 **Note:** The `init` command automatically adds a `prepare` script to your `package.json` that runs before `npm install`, so dependencies are prepared automatically when you install packages.
 
+### Development Environment
+
+Microtastic includes a complete development environment setup out of the box:
+
+#### VS Code Dev Container
+
+The template includes a `.devcontainer/` configuration for VS Code that provides:
+- **Consistent Environment**: Node.js 22 in a Docker container
+- **Pre-configured Extensions**: Biome and ES6 string HTML syntax highlighting
+- **Auto-formatting**: Biome configured as the default formatter with auto-fix on save
+- **Port Forwarding**: Development server port (8181) automatically forwarded
+
+To use the dev container:
+1. Open the project in VS Code
+2. When prompted, click "Reopen in Container" (or use Command Palette: "Dev Containers: Reopen in Container")
+3. VS Code will build the container and install dependencies automatically
+
+#### Biome Linter & Formatter
+
+Biome is installed automatically during `microtastic init` and configured for:
+- **Linting**: Code quality checks with recommended rules
+- **Formatting**: Consistent code style (tabs, double quotes)
+- **Import Organization**: Automatic import sorting on save (in dev container)
+
+The `biome.json` configuration file is included in the template and targets files in `app/src/` (excluding the `dependencies/` directory).
+
+**Available Biome commands:**
+```bash
+npm run check    # Lint and check code
+npx biome check  # Run linter
+npx biome format # Format code
+```
+
+In the VS Code dev container, Biome automatically formats and organizes imports on save.
+
 ## CLI Commands
 
 Microtastic provides the following CLI commands:
@@ -114,7 +154,9 @@ The `init` command automatically adds these scripts to your `package.json`:
     "prepare": "microtastic prep",
     "dev": "microtastic dev",
     "dependencies": "microtastic prep",
-    "prod": "microtastic prod"
+    "prod": "microtastic prod",
+    "format": "biome format --write .",
+    "check": "biome check ."
   }
 }
 ```
@@ -123,6 +165,8 @@ The `init` command automatically adds these scripts to your `package.json`:
 - `npm run dev` - Starts the development server
 - `npm run dependencies` - Alias for `prepare`
 - `npm run prod` - Builds the production bundle
+- `npm run format` - Formats code with Biome (auto-installed)
+- `npm run check` - Lints and checks code with Biome
 
 ## Configuration
 
