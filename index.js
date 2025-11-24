@@ -1,13 +1,17 @@
 #!/usr/bin/env node
+import { exec } from "node:child_process";
 import { promises as fs, realpathSync, watch } from "node:fs";
 import http from "node:http";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import commonjs from "@rollup/plugin-commonjs";
 import { nodeResolve } from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 import { rollup } from "rollup";
 import nodePolyfills from "rollup-plugin-polyfill-node";
+
+const execAsync = promisify(exec);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -412,15 +416,41 @@ class CommandHandler {
 		);
 
 		const appPkg = await this.loadAppPackage();
+		appPkg.scripts ??= {};
 		appPkg.scripts.prepare = "microtastic prep";
 		appPkg.scripts.dev = "microtastic dev";
 		appPkg.scripts.dependencies = "microtastic prep";
 		appPkg.scripts.prod = "microtastic prod";
+		appPkg.scripts.format = "biome format --write .";
+		appPkg.scripts.check = "biome check .";
 		await fs.writeFile(
 			this.paths.projectPkgPath,
 			JSON.stringify(appPkg, undefined, 2),
 			"utf8",
 		);
+
+		// Install Biome version matching the template configuration
+		try {
+			const microtasticPkg = JSON.parse(
+				await fs.readFile(
+					path.join(this.paths.microtasticDir, "/package.json"),
+					"utf8",
+				),
+			);
+			const biomeVersion = microtasticPkg.devDependencies["@biomejs/biome"];
+			if (biomeVersion) {
+				this.logger.info(`Installing @biomejs/biome@${biomeVersion}...`);
+				await execAsync(
+					`npm install --save-dev @biomejs/biome@${biomeVersion}`,
+					{ cwd: this.paths.projectDir },
+				);
+				this.logger.success("Biome installed successfully");
+			}
+		} catch (error) {
+			this.logger.error(
+				`Failed to install Biome: ${error.message}. You can install it manually with: npm install --save-dev @biomejs/biome`,
+			);
+		}
 
 		if (await FileManager.checkExists(this.paths.projectGitIgnorePath)) {
 			await fs.appendFile(
