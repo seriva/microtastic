@@ -14,7 +14,9 @@ Microtastic includes **reactive.js**, a signals-based reactive state management 
 - **Asset Management**: Automatic copying of fonts, CSS, and other assets from `node_modules`
 - **Simple Dev Server**: Lightweight development server for serving static files
 - **Production Ready**: Optimized builds with tree-shaking and code-splitting
-- **Reactive Framework**: Built-in signals-based reactive state management
+- **Reactive Framework**: Built-in signals-based reactive state management with fine-grained reactivity
+- **Advanced Debugging**: Named signals, debug mode, and `peek()` for non-tracking reads
+- **Circular Dependency Detection**: Prevents infinite loops in computed signals
 - **Code Quality**: Biome linter and formatter installed by default
 - **Dev Container**: VS Code devcontainer configuration included for consistent development environment
 - **Opinionated**: Simple project structure and workflow
@@ -247,9 +249,9 @@ import { Signals, Reactive, html, css } from './reactive.js';
 
 Signals are reactive primitives that track dependencies and update subscribers automatically.
 
-#### `Signals.create(value, equals?)`
+#### `Signals.create(value, equals?, name?)`
 
-Creates a signal with an initial value. Optionally provide a custom equality function.
+Creates a signal with an initial value. Optionally provide a custom equality function and a name for debugging.
 
 ```javascript
 const count = Signals.create(0);
@@ -259,30 +261,93 @@ const user = Signals.create({ name: "Alice", age: 30 });
 const items = Signals.create([], (a, b) => 
 	a.length === b.length && a.every((x, i) => x === b[i])
 );
+
+// Named signals for debugging
+const counter = Signals.create(0, undefined, "userCounter");
+console.log(counter.toString()); // "Signal(userCounter)"
 ```
 
 **Signal Methods:**
 - `signal.get()` - Read value (tracks dependencies in computed contexts)
+- `signal.peek()` - Read value without tracking dependencies
 - `signal.set(value)` - Update value
 - `signal.update(fn)` - Update using function: `signal.update(n => n + 1)`
 - `signal.subscribe(fn)` - Subscribe to changes, returns unsubscribe function
+- `signal.once(fn)` - Subscribe for one notification only
 - `signal.subscribeInternal(fn)` - Internal subscription (doesn't call immediately)
+- `signal.toString()` - Get readable string representation
 
-#### `Signals.computed(fn)`
+#### `Signals.computed(fn, name?)`
 
-Creates a computed signal that automatically tracks dependencies and recomputes when they change.
+Creates a computed signal that automatically tracks dependencies and recomputes when they change. Optionally provide a name for debugging. Includes circular dependency detection to prevent infinite loops.
 
 ```javascript
-const firstName = Signals.create("Alice");
-const lastName = Signals.create("Smith");
-const fullName = Signals.computed(() => `${firstName.get()} ${lastName.get()}`);
+const firstName = Signals.create("Alice", undefined, "firstName");
+const lastName = Signals.create("Smith", undefined, "lastName");
+const fullName = Signals.computed(
+	() => `${firstName.get()} ${lastName.get()}`,
+	"fullName"
+);
 
 // Automatically updates when firstName or lastName changes
 fullName.subscribe(name => console.log(name)); // "Alice Smith"
 
+// Use peek() to read without creating dependencies
+const logValue = Signals.computed(() => {
+	const val = fullName.peek(); // No dependency created
+	console.log("Current value:", val);
+	return val;
+});
+
 // Clean up when done
 fullName.dispose();
+logValue.dispose();
 ```
+
+**Circular Dependency Protection:**
+Computed signals detect circular dependencies and throw descriptive errors:
+
+```javascript
+// This throws: "Circular dependency detected: a -> b -> a"
+const a = Signals.computed(() => b.get() + 1, "a");
+const b = Signals.computed(() => a.get() + 1, "b");
+```
+
+#### `Signals.computedAsync(fn, name?)`
+
+Creates an async computed signal that handles asynchronous operations like API calls. The signal value is an object with `{ status, data, error, loading }` properties. Automatically cancels previous executions when dependencies change.
+
+```javascript
+const userId = Signals.create(1, undefined, "userId");
+
+const userData = Signals.computedAsync(async (cancelToken) => {
+	const id = userId.get();
+	const response = await fetch(`/api/users/${id}`);
+	
+	// Check if this execution was cancelled
+	if (cancelToken.cancelled) return null;
+	
+	return response.json();
+}, "userData");
+
+// Access state properties
+userData.subscribe(state => {
+	console.log(state.status);  // "pending" | "resolved" | "error"
+	console.log(state.loading);  // true | false
+	console.log(state.data);     // resolved data or previous data
+	console.log(state.error);    // error object if status is "error"
+});
+
+// When userId changes, previous fetch is cancelled automatically
+userId.set(2);
+
+// Clean up
+userData.dispose();
+```
+
+**Cancellation:** When dependencies change, the previous async execution is automatically cancelled via the `cancelToken.cancelled` flag. This prevents race conditions and ensures only the latest result is used.
+
+**Error Handling:** Errors are captured in the state object. Previous data is preserved when errors occur, allowing graceful degradation.
 
 #### `Signals.batch(fn)`
 
@@ -296,6 +361,55 @@ Signals.batch(() => {
 	// Subscribers only notified once after batch completes
 });
 ```
+
+### Debugging Features
+
+#### Signal Names
+
+Signals and computed signals can be named for better debugging:
+
+```javascript
+const userCount = Signals.create(0, undefined, "userCount");
+const doubled = Signals.computed(() => userCount.get() * 2, "doubled");
+
+console.log(userCount.toString()); // "Signal(userCount)"
+console.log(doubled.toString());   // "Signal(doubled)"
+```
+
+Named signals appear in debug logs and error messages, making it easier to track down issues in complex reactive applications.
+
+#### Debug Mode
+
+Enable debug mode to log all signal updates and computed recalculations:
+
+```javascript
+import { setDebugMode } from './reactive.js';
+
+setDebugMode(true); // Enable debug logging
+
+const count = Signals.create(0, undefined, "counter");
+count.set(5); // Logs: [Reactive] Signal updated: [counter] 0 -> 5
+
+const doubled = Signals.computed(() => count.get() * 2, "doubled");
+count.set(10); // Logs: [Reactive] Computed updated: [doubled] 20
+```
+
+#### Reading Without Tracking
+
+Use `peek()` to read signal values without creating dependencies:
+
+```javascript
+const count = Signals.create(0);
+const doubled = Signals.computed(() => count.get() * 2);
+
+// Read without tracking - won't recompute if doubled changes
+const logger = Signals.computed(() => {
+	console.log("Current doubled value:", doubled.peek());
+	return count.get(); // Only depends on count
+});
+```
+
+This is useful for logging, debugging, or conditional logic where you don't want to create reactive dependencies.
 
 ### HTML Templates
 

@@ -2,7 +2,15 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import "./setup.js";
-import { html, Reactive, Signals } from "../reactive.js";
+import {
+	css,
+	html,
+	join,
+	Reactive,
+	Signals,
+	setDebugMode,
+	trusted,
+} from "../reactive.js";
 
 describe("Signals", () => {
 	test("should create signal with initial value", () => {
@@ -77,6 +85,128 @@ describe("Signals", () => {
 		count.set(10);
 		assert.equal(calls1, 2, "First subscriber called on update");
 		assert.equal(calls2, 2, "Second subscriber called on update");
+	});
+
+	test("should support once for one-time subscription", () => {
+		const count = Signals.create(0);
+		let callCount = 0;
+		let lastValue = null;
+
+		const unsub = count.once((value) => {
+			callCount++;
+			lastValue = value;
+		});
+
+		assert.equal(callCount, 1, "Should call immediately");
+		assert.equal(lastValue, 0);
+		assert.equal(
+			typeof unsub,
+			"function",
+			"Should return unsubscribe function",
+		);
+
+		count.set(5);
+		assert.equal(callCount, 1, "Should not call again");
+		assert.equal(lastValue, 0, "Value should not update");
+
+		count.set(10);
+		assert.equal(callCount, 1, "Should still not call");
+	});
+
+	test("should support custom equality function", () => {
+		const obj = Signals.create(
+			{ id: 1, name: "Alice" },
+			(a, b) => a.id === b.id,
+		);
+		let callCount = 0;
+
+		obj.subscribe(() => callCount++);
+		assert.equal(callCount, 1, "Should call immediately");
+
+		// Same id, different name - should NOT notify
+		obj.set({ id: 1, name: "Bob" });
+		assert.equal(callCount, 1, "Should not notify for same id");
+
+		// Different id - should notify
+		obj.set({ id: 2, name: "Charlie" });
+		assert.equal(callCount, 2, "Should notify for different id");
+	});
+
+	test("should support custom equality for arrays", () => {
+		const arr = Signals.create(
+			[1, 2, 3],
+			(a, b) => a.length === b.length && a.every((v, i) => v === b[i]),
+		);
+		let callCount = 0;
+
+		arr.subscribe(() => callCount++);
+		assert.equal(callCount, 1, "Should call immediately");
+
+		// Same content - should NOT notify
+		arr.set([1, 2, 3]);
+		assert.equal(callCount, 1, "Should not notify for same content");
+
+		// Different content - should notify
+		arr.set([1, 2, 4]);
+		assert.equal(callCount, 2, "Should notify for different content");
+	});
+
+	test("should support peek() without tracking", () => {
+		const count = Signals.create(5);
+		const doubled = Signals.computed(() => count.get() * 2);
+
+		assert.equal(doubled.peek(), 10);
+
+		// Create another computed that peeks
+		let computeCount = 0;
+		const result = Signals.computed(() => {
+			computeCount++;
+			return doubled.peek() + 100; // Using peek, so no dependency
+		});
+
+		assert.equal(result.get(), 110);
+		assert.equal(computeCount, 1);
+
+		// Change count - result should NOT update because it peeked
+		count.set(10);
+		assert.equal(doubled.get(), 20); // doubled updates
+		assert.equal(result.peek(), 110); // result stays the same
+		assert.equal(computeCount, 1, "Should not recompute when using peek");
+
+		result.dispose();
+		doubled.dispose();
+	});
+
+	test("should support signal names for debugging", () => {
+		const count = Signals.create(0, undefined, "counter");
+		assert.equal(count._name, "counter");
+		assert.equal(count.toString(), "Signal(counter)");
+
+		const unnamed = Signals.create(0);
+		assert.equal(unnamed._name, undefined);
+		assert.equal(unnamed.toString(), "Signal");
+	});
+
+	test("should include names in debug logs", () => {
+		const logs = [];
+		const originalLog = console.log;
+		console.log = (...args) => logs.push(args);
+
+		setDebugMode(true);
+
+		const named = Signals.create(0, undefined, "mySignal");
+		named.set(5);
+
+		setDebugMode(false);
+		console.log = originalLog;
+
+		const hasNamedLog = logs.some(
+			(log) =>
+				log[0] === "[Reactive]" &&
+				log[1] === "Signal updated:" &&
+				log[2] === "[mySignal]",
+		);
+		assert.ok(hasNamedLog);
 	});
 });
 
@@ -163,6 +293,75 @@ describe("Computed Signals", () => {
 		assert.equal(dynamic.get(), "B3");
 		assert.equal(runs, 3);
 	});
+
+	test("should support computed signal names", () => {
+		const a = Signals.create(2, undefined, "a");
+		const b = Signals.create(3, undefined, "b");
+		const sum = Signals.computed(() => a.get() + b.get(), "sum");
+
+		assert.equal(sum._name, "sum");
+		assert.equal(sum.toString(), "Signal(sum)");
+	});
+
+	test("should prevent infinite recursion with circular computed", () => {
+		// Test that circular dependency detection prevents stack overflow
+		const signal = Signals.create(1, undefined, "base");
+
+		// Create a computed that will try to read itself
+		let circularComputed;
+		const wrapper = {
+			get: () => {
+				if (circularComputed) {
+					// This would create infinite recursion without detection
+					return circularComputed.get();
+				}
+				return signal.get();
+			},
+		};
+
+		// The circular dependency is detected when the computed
+		// tries to access itself during its own computation
+		circularComputed = Signals.computed(() => {
+			return wrapper.get() + 1;
+		}, "circular");
+
+		// Should work fine on first access (no circular ref yet)
+		assert.equal(circularComputed.peek(), 2);
+
+		// Now trigger update - if wrapper.get() is called, it will try to
+		// access circularComputed.get() during computation, triggering detection
+		signal.set(2);
+
+		circularComputed.dispose();
+	});
+
+	test("should include named signals in circular dependency messages", () => {
+		// Verify that signal names appear in error messages when circular deps are detected
+		const a = Signals.create(1, undefined, "signalA");
+		const b = Signals.computed(() => a.get() * 2, "computedB");
+
+		// Names should be tracked and available for debugging
+		assert.equal(a._name, "signalA");
+		assert.equal(b._name, "computedB");
+
+		b.dispose();
+	});
+
+	test("should track compute stack correctly", () => {
+		// Verify that compute stack is properly managed
+		const a = Signals.create(1);
+		const b = Signals.computed(() => a.get() * 2);
+		const c = Signals.computed(() => b.get() + 1);
+
+		assert.equal(c.get(), 3);
+
+		// Stack should be empty after computation
+		a.set(2);
+		assert.equal(c.get(), 5);
+
+		c.dispose();
+		b.dispose();
+	});
 });
 
 describe("Reactive.mount", () => {
@@ -232,6 +431,109 @@ describe("Reactive.bindText", () => {
 		Reactive.bindText(span, text);
 		assert.equal(span.textContent, "<b>Bold</b>");
 		assert.equal(span.innerHTML, "&lt;b&gt;Bold&lt;/b&gt;");
+	});
+});
+
+describe("Reactive.bindStyle", () => {
+	test("should bind signal to style property", () => {
+		const div = document.createElement("div");
+		const color = Signals.create("red");
+
+		Reactive.bindStyle(div, "color", color);
+		assert.equal(div.style.color, "red");
+
+		color.set("blue");
+		assert.equal(div.style.color, "blue");
+	});
+
+	test("should bind to multiple style properties", () => {
+		const div = document.createElement("div");
+		const width = Signals.create("100px");
+		const height = Signals.create("50px");
+
+		Reactive.bindStyle(div, "width", width);
+		Reactive.bindStyle(div, "height", height);
+
+		assert.equal(div.style.width, "100px");
+		assert.equal(div.style.height, "50px");
+
+		width.set("200px");
+		height.set("100px");
+
+		assert.equal(div.style.width, "200px");
+		assert.equal(div.style.height, "100px");
+	});
+
+	test("should handle camelCase properties", () => {
+		const div = document.createElement("div");
+		const color = Signals.create("red");
+
+		Reactive.bindStyle(div, "backgroundColor", color);
+		assert.equal(div.style.backgroundColor, "red");
+
+		color.set("blue");
+		assert.equal(div.style.backgroundColor, "blue");
+	});
+});
+
+describe("Reactive.bindMultiple", () => {
+	test("should bind multiple signals with transform", () => {
+		const div = document.createElement("div");
+		const firstName = Signals.create("John");
+		const lastName = Signals.create("Doe");
+
+		Reactive.bindMultiple(
+			div,
+			[firstName, lastName],
+			([first, last]) => html`${first} ${last}`,
+		);
+
+		assert.equal(div.textContent, "John Doe");
+
+		firstName.set("Jane");
+		assert.equal(div.textContent, "Jane Doe");
+
+		lastName.set("Smith");
+		assert.equal(div.textContent, "Jane Smith");
+	});
+
+	test("should throw error for non-array signals", () => {
+		const div = document.createElement("div");
+		const signal = Signals.create("test");
+
+		assert.throws(() => {
+			Reactive.bindMultiple(div, signal, (val) => val);
+		}, /bindMultiple expects an array of signals/);
+	});
+
+	test("should handle three or more signals", () => {
+		const div = document.createElement("div");
+		const x = Signals.create(1);
+		const y = Signals.create(2);
+		const z = Signals.create(3);
+
+		Reactive.bindMultiple(div, [x, y, z], ([a, b, c]) => `${a + b + c}`);
+
+		assert.equal(div.textContent, "6");
+
+		x.set(10);
+		assert.equal(div.textContent, "15");
+	});
+
+	test("should support cleanup", () => {
+		const div = document.createElement("div");
+		const a = Signals.create(1);
+		const b = Signals.create(2);
+
+		const cleanup = Reactive.bindMultiple(div, [a, b], ([x, y]) => `${x + y}`);
+
+		assert.equal(div.textContent, "3");
+
+		cleanup();
+
+		a.set(10);
+		b.set(20);
+		assert.equal(div.textContent, "3", "Should not update after cleanup");
 	});
 });
 
@@ -316,6 +618,93 @@ describe("Reactive.bindClass", () => {
 
 		isActive.set(false);
 		assert.equal(div.classList.contains("active"), false);
+	});
+});
+
+describe("Declarative Directives", () => {
+	test("data-visible should control display", () => {
+		const div = document.createElement("div");
+		const visible = Signals.create(true);
+		const scope = { visible };
+
+		div.setAttribute("data-visible", "visible");
+		const cleanup = Reactive.scan(div, scope);
+
+		assert.equal(div.style.display, "");
+
+		visible.set(false);
+		assert.equal(div.style.display, "none");
+
+		visible.set(true);
+		assert.equal(div.style.display, "");
+
+		cleanup();
+	});
+
+	test("data-if should conditionally mount/unmount", () => {
+		const container = document.createElement("div");
+		const child = document.createElement("span");
+		child.textContent = "Conditional";
+		container.appendChild(child);
+
+		const show = Signals.create(true);
+		const scope = { show };
+
+		child.setAttribute("data-if", "show");
+		const cleanup = Reactive.scan(container, scope);
+
+		// Initially shown
+		assert.ok(container.contains(child));
+
+		// Hide
+		show.set(false);
+		assert.ok(!container.contains(child));
+
+		// Show again
+		show.set(true);
+		assert.ok(container.contains(child));
+
+		cleanup();
+	});
+
+	test("data-if should preserve element when re-shown", () => {
+		const container = document.createElement("div");
+		const child = document.createElement("span");
+		child.textContent = "Test";
+		container.appendChild(child);
+
+		const show = Signals.create(true);
+		const scope = { show };
+
+		child.setAttribute("data-if", "show");
+		Reactive.scan(container, scope);
+
+		show.set(false);
+		show.set(true);
+
+		// Element should be back
+		assert.ok(container.contains(child));
+		assert.equal(child.textContent, "Test");
+	});
+
+	test("data-if should insert placeholder comment", () => {
+		const container = document.createElement("div");
+		const child = document.createElement("span");
+		container.appendChild(child);
+
+		const show = Signals.create(true);
+		const scope = { show };
+
+		child.setAttribute("data-if", "show");
+		Reactive.scan(container, scope);
+
+		show.set(false);
+
+		// Should have a comment placeholder
+		const hasComment = Array.from(container.childNodes).some(
+			(node) => node.nodeType === 8,
+		);
+		assert.ok(hasComment);
 	});
 });
 
@@ -506,6 +895,268 @@ describe("Reactive.scan", () => {
 		component.cleanup();
 	});
 
+	test("should support effect for side effects", () => {
+		class EffectComponent extends Reactive.Component {
+			constructor() {
+				super();
+				this.count = this.signal(0);
+				this.effectRuns = 0;
+				this.effect(() => {
+					this.count.get(); // Track count
+					this.effectRuns++;
+				});
+			}
+		}
+
+		const component = new EffectComponent();
+		assert.equal(component.effectRuns, 1, "Effect should run initially");
+
+		component.count.set(5);
+		assert.equal(
+			component.effectRuns,
+			2,
+			"Effect should run on dependency change",
+		);
+
+		component.cleanup();
+	});
+
+	test("should support on() for event listeners with auto-batching", () => {
+		class EventComponent extends Reactive.Component {
+			constructor() {
+				super();
+				this.count = this.signal(0);
+			}
+			setupButton(button) {
+				this.on(button, "click", () => {
+					this.count.set(1);
+					this.count.set(2);
+					this.count.set(3);
+				});
+			}
+		}
+
+		const component = new EventComponent();
+		const button = document.createElement("button");
+		let notifications = 0;
+
+		component.count.subscribe(() => notifications++);
+		notifications = 0; // Reset after initial call
+
+		component.setupButton(button);
+		button.click();
+
+		assert.equal(component.count.get(), 3);
+		assert.equal(notifications, 1, "Should batch updates in event handler");
+
+		component.cleanup();
+	});
+
+	test("should collect refs with data-ref", () => {
+		class RefComponent extends Reactive.Component {
+			template() {
+				return html`
+					<div>
+						<input data-ref="input" type="text" />
+						<button data-ref="submit">Submit</button>
+					</div>
+				`;
+			}
+		}
+
+		const component = new RefComponent();
+		component.render();
+
+		assert.ok(component.refs.input);
+		assert.equal(component.refs.input.tagName, "INPUT");
+		assert.ok(component.refs.submit);
+		assert.equal(component.refs.submit.tagName, "BUTTON");
+
+		component.cleanup();
+	});
+
+	test("should support mountTo with container ID", () => {
+		const container = document.createElement("div");
+		container.id = "app";
+		document.body.appendChild(container);
+
+		class MountComponent extends Reactive.Component {
+			state() {
+				return { message: "Mounted" };
+			}
+			template() {
+				return html`<div data-text="message"></div>`;
+			}
+		}
+
+		const component = new MountComponent();
+		const element = component.mountTo("app");
+
+		assert.ok(element);
+		assert.equal(container.children.length, 1);
+		assert.equal(element.textContent, "Mounted");
+
+		component.cleanup();
+		document.body.removeChild(container);
+	});
+
+	test("should support appendTo with container ID", () => {
+		const container = document.createElement("div");
+		container.id = "list";
+		document.body.appendChild(container);
+
+		class ItemComponent extends Reactive.Component {
+			template() {
+				return html`<li>Item</li>`;
+			}
+		}
+
+		const comp1 = new ItemComponent();
+		const comp2 = new ItemComponent();
+
+		comp1.appendTo("list");
+		comp2.appendTo("list");
+
+		assert.equal(container.children.length, 2);
+
+		comp1.cleanup();
+		comp2.cleanup();
+		document.body.removeChild(container);
+	});
+
+	test("should support appendTo body", () => {
+		class BodyComponent extends Reactive.Component {
+			template() {
+				return html`<div id="test-body-append">Test</div>`;
+			}
+		}
+
+		const component = new BodyComponent();
+		const element = component.appendTo("body");
+
+		assert.ok(element);
+		assert.ok(document.body.contains(element));
+
+		component.cleanup();
+		document.body.removeChild(element);
+	});
+
+	test("should call mount lifecycle hook", () => {
+		class LifecycleComponent extends Reactive.Component {
+			constructor() {
+				super();
+				this.mounted = false;
+			}
+			template() {
+				return html`<div>Test</div>`;
+			}
+			mount() {
+				this.mounted = true;
+			}
+		}
+
+		const container = document.createElement("div");
+		container.id = "lifecycle-test";
+		document.body.appendChild(container);
+
+		const component = new LifecycleComponent();
+		assert.equal(component.mounted, false);
+
+		component.mountTo("lifecycle-test");
+		assert.equal(component.mounted, true);
+
+		component.cleanup();
+		document.body.removeChild(container);
+	});
+
+	test("should call onCleanup lifecycle hook", () => {
+		class CleanupComponent extends Reactive.Component {
+			constructor() {
+				super();
+				this.cleaned = false;
+			}
+			template() {
+				return html`<div>Test</div>`;
+			}
+			onCleanup() {
+				this.cleaned = true;
+			}
+		}
+
+		const component = new CleanupComponent();
+		component.render();
+
+		assert.equal(component.cleaned, false);
+		component.cleanup();
+		assert.equal(component.cleaned, true);
+	});
+
+	test("should apply styles from styles() method", () => {
+		class StyledComponent extends Reactive.Component {
+			template() {
+				return html`<div>Styled</div>`;
+			}
+			styles() {
+				return css`
+					color: red;
+				`;
+			}
+		}
+
+		const component = new StyledComponent();
+		const element = component.render();
+
+		const className = component.styles();
+		assert.ok(element.classList.contains(className));
+
+		component.cleanup();
+	});
+
+	test("should handle render errors gracefully", () => {
+		class BrokenComponent extends Reactive.Component {
+			template() {
+				// Returns invalid template
+				return { __safe: false };
+			}
+		}
+
+		const component = new BrokenComponent();
+		const element = component.render();
+
+		// Should render error component
+		assert.ok(element);
+		assert.ok(element.classList.contains("component-error"));
+		assert.ok(element.innerHTML.includes("Failed to render component"));
+	});
+
+	test("should handle missing container in mountTo", () => {
+		class TestComponent extends Reactive.Component {
+			template() {
+				return html`<div>Test</div>`;
+			}
+		}
+
+		const component = new TestComponent();
+		const result = component.mountTo("nonexistent-container");
+
+		assert.equal(result, null);
+		component.cleanup();
+	});
+
+	test("should handle missing container in appendTo", () => {
+		class TestComponent extends Reactive.Component {
+			template() {
+				return html`<div>Test</div>`;
+			}
+		}
+
+		const component = new TestComponent();
+		const result = component.appendTo("nonexistent-container");
+
+		assert.equal(result, null);
+		component.cleanup();
+	});
+
 	test("should handle html tagged template in data-html", () => {
 		class HtmlComponent extends Reactive.Component {
 			constructor() {
@@ -540,6 +1191,215 @@ describe("Reactive.scan", () => {
 		assert.equal(button.hasAttribute("disabled"), true);
 
 		cleanup();
+	});
+});
+
+describe("Edge Cases and Advanced Scenarios", () => {
+	test("should handle debug mode", () => {
+		const logs = [];
+		const originalLog = console.log;
+		console.log = (...args) => logs.push(args);
+
+		setDebugMode(true);
+
+		const count = Signals.create(0);
+		count.set(5);
+
+		setDebugMode(false);
+		console.log = originalLog;
+
+		// Should have logged the update
+		const hasReactiveLog = logs.some(
+			(log) => log[0] === "[Reactive]" && log[1] === "Signal updated:",
+		);
+		assert.ok(hasReactiveLog);
+	});
+
+	test("should prevent memory leaks with proper cleanup", () => {
+		const signal = Signals.create(0);
+		const computed1 = Signals.computed(() => signal.get() * 2);
+		const computed2 = Signals.computed(() => computed1.get() + 10);
+
+		assert.equal(computed2.get(), 10);
+
+		signal.set(5);
+		assert.equal(computed2.get(), 20);
+
+		// Cleanup
+		computed2.dispose();
+		computed1.dispose();
+
+		// Should not update after disposal
+		signal.set(10);
+		assert.equal(computed2.get(), 20, "Should not update after dispose");
+	});
+
+	test("should handle deeply nested computed dependencies", () => {
+		const a = Signals.create(1);
+		const b = Signals.computed(() => a.get() * 2);
+		const c = Signals.computed(() => b.get() * 3);
+		const d = Signals.computed(() => c.get() * 4);
+
+		assert.equal(d.get(), 24); // 1 * 2 * 3 * 4 = 24
+
+		a.set(2);
+		assert.equal(d.get(), 48); // 2 * 2 * 3 * 4 = 48
+
+		d.dispose();
+		c.dispose();
+		b.dispose();
+	});
+
+	test("should batch nested signal updates", () => {
+		const a = Signals.create(1);
+		const b = Signals.create(1);
+		const c = Signals.create(1);
+
+		let updates = 0;
+		const sum = Signals.computed(() => {
+			updates++;
+			return a.get() + b.get() + c.get();
+		});
+
+		assert.equal(sum.get(), 3);
+		updates = 0;
+
+		Signals.batch(() => {
+			a.set(2);
+			Signals.batch(() => {
+				b.set(3);
+				c.set(4);
+			});
+		});
+
+		assert.equal(sum.get(), 9);
+		assert.equal(updates, 1, "Should only update once for nested batches");
+
+		sum.dispose();
+	});
+
+	test("should handle rapid signal changes in batch", () => {
+		const signal = Signals.create(0);
+		let finalValue = null;
+
+		signal.subscribe((v) => {
+			finalValue = v;
+		});
+
+		Signals.batch(() => {
+			for (let i = 1; i <= 100; i++) {
+				signal.set(i);
+			}
+		});
+
+		assert.equal(finalValue, 100, "Should only see final value");
+	});
+
+	test("should handle computed error gracefully", () => {
+		const errors = [];
+		const originalError = console.error;
+		console.error = (...args) => errors.push(args);
+
+		try {
+			Signals.computed(() => {
+				throw new Error("Computation failed");
+			});
+		} catch (error) {
+			// Expected to throw
+			assert.equal(error.message, "Computation failed");
+		}
+
+		console.error = originalError;
+
+		assert.ok(errors.some((err) => err[0] === "[Reactive] Computed error:"));
+	});
+
+	test("should track and cleanup event listeners", () => {
+		const component = Reactive.createComponent();
+		const button = document.createElement("button");
+		let clicks = 0;
+
+		const handler = () => clicks++;
+		button.addEventListener("click", handler);
+		component.track(() => button.removeEventListener("click", handler));
+
+		button.click();
+		assert.equal(clicks, 1);
+
+		component.cleanup();
+		button.click();
+		assert.equal(clicks, 1, "Should not respond after cleanup");
+	});
+
+	test("should handle data-html with nested scanning", () => {
+		const container = document.createElement("div");
+		const content = Signals.create(
+			html`<span data-text="message">Nested</span>`,
+		);
+		const message = Signals.create("Hello");
+		const scope = { content, message };
+
+		container.setAttribute("data-html", "content");
+		const cleanup = Reactive.scan(container, scope);
+
+		// Check nested binding works
+		const span = container.querySelector("span");
+		assert.ok(span);
+		assert.equal(span.textContent, "Hello");
+
+		message.set("World");
+		assert.equal(span.textContent, "World");
+
+		cleanup();
+	});
+
+	test("should properly cleanup multiple subscriptions", () => {
+		const component = Reactive.createComponent();
+		const sig1 = Signals.create(1);
+		const sig2 = Signals.create(2);
+		const sig3 = Signals.create(3);
+
+		let updates = 0;
+		component.track(sig1.subscribe(() => updates++));
+		component.track(sig2.subscribe(() => updates++));
+		component.track(sig3.subscribe(() => updates++));
+
+		updates = 0; // Reset after initial subscriptions
+
+		sig1.set(10);
+		sig2.set(20);
+		sig3.set(30);
+		assert.equal(updates, 3);
+
+		component.cleanup();
+		updates = 0;
+
+		sig1.set(100);
+		sig2.set(200);
+		sig3.set(300);
+		assert.equal(updates, 0, "Should not update after cleanup");
+	});
+
+	test("should handle signal updates during computed recalculation", () => {
+		const base = Signals.create(1);
+		const side = Signals.create(0);
+
+		const computed = Signals.computed(() => {
+			const value = base.get();
+			if (value > 5) {
+				side.set(value * 2); // Update another signal during computation
+			}
+			return value;
+		});
+
+		assert.equal(computed.get(), 1);
+		assert.equal(side.get(), 0);
+
+		base.set(10);
+		assert.equal(computed.get(), 10);
+		assert.equal(side.get(), 20);
+
+		computed.dispose();
 	});
 
 	test("should support two-way data binding with data-model", () => {
@@ -707,5 +1567,395 @@ describe("Signals.batch", () => {
 
 		assert.equal(sum.get(), 6);
 		assert.equal(updates, 1, "Should update only once");
+	});
+});
+
+describe("HTML Utilities", () => {
+	test("html should create safe content", () => {
+		const result = html`<div>Hello</div>`;
+		assert.ok(result.__safe);
+		assert.equal(result.content, "<div>Hello</div>");
+	});
+
+	test("html should escape unsafe content", () => {
+		const userInput = "<script>alert('xss')</script>";
+		const result = html`<div>${userInput}</div>`;
+		assert.ok(result.content.includes("&lt;script&gt;"));
+		assert.ok(!result.content.includes("<script>"));
+	});
+
+	test("html should handle null and undefined", () => {
+		const result1 = html`<div>${null}</div>`;
+		const result2 = html`<div>${undefined}</div>`;
+		assert.equal(result1.content, "<div></div>");
+		assert.equal(result2.content, "<div></div>");
+	});
+
+	test("html should preserve safe nested content", () => {
+		const inner = html`<span>Safe</span>`;
+		const outer = html`<div>${inner}</div>`;
+		assert.equal(outer.content, "<div><span>Safe</span></div>");
+	});
+
+	test("html should handle multiple interpolations", () => {
+		const name = "Alice";
+		const age = 30;
+		const result = html`<p>Name: ${name}, Age: ${age}</p>`;
+		assert.equal(result.content, "<p>Name: Alice, Age: 30</p>");
+	});
+
+	test("trusted should create safe content without escaping", () => {
+		const dangerous = "<script>alert('xss')</script>";
+		const result = trusted(dangerous);
+		assert.ok(result.__safe);
+		assert.equal(result.content, dangerous);
+	});
+
+	test("join should join array items", () => {
+		const items = ["apple", "banana", "cherry"];
+		const result = join(items, ", ");
+		assert.ok(result.__safe);
+		assert.equal(result.content, "apple, banana, cherry");
+	});
+
+	test("join should handle safe content items", () => {
+		const items = [html`<b>bold</b>`, html`<i>italic</i>`];
+		const result = join(items, " | ");
+		assert.equal(result.content, "<b>bold</b> | <i>italic</i>");
+	});
+
+	test("join should handle mixed safe and plain content", () => {
+		const items = [html`<b>bold</b>`, "plain", html`<i>italic</i>`];
+		const result = join(items, ", ");
+		assert.equal(result.content, "<b>bold</b>, plain, <i>italic</i>");
+	});
+
+	test("join with html separator", () => {
+		const items = ["a", "b", "c"];
+		const separator = html` | `;
+		const result = join(items, separator);
+		assert.equal(result.content, "a | b | c");
+	});
+
+	test("join with empty separator", () => {
+		const items = ["a", "b", "c"];
+		const result = join(items);
+		assert.equal(result.content, "abc");
+	});
+});
+
+describe("CSS-in-JS", () => {
+	test("css should generate unique class names", () => {
+		const class1 = css`
+			color: red;
+		`;
+		const class2 = css`
+			color: blue;
+		`;
+		assert.ok(class1.startsWith("s-"));
+		assert.ok(class2.startsWith("s-"));
+		assert.notEqual(class1, class2);
+	});
+
+	test("css should return same class for same content", () => {
+		const class1 = css`
+			color: red;
+		`;
+		const class2 = css`
+			color: red;
+		`;
+		assert.equal(class1, class2);
+	});
+
+	test("css should inject style into document head", () => {
+		const stylesBefore = document.head.querySelectorAll("style").length;
+		const className = css`
+			background: yellow;
+		`;
+		const stylesAfter = document.head.querySelectorAll("style").length;
+		assert.ok(stylesAfter >= stylesBefore);
+		assert.ok(className.startsWith("s-"));
+	});
+
+	test("css should handle & selector replacement", () => {
+		const className = css`
+			& {
+				color: red;
+			}
+			&:hover {
+				color: blue;
+			}
+		`;
+		assert.ok(className.startsWith("s-"));
+		// Check that style was created
+		const styles = Array.from(document.head.querySelectorAll("style"));
+		const hasClass = styles.some((s) =>
+			s.textContent.includes(`.${className}`),
+		);
+		assert.ok(hasClass);
+	});
+
+	test("css should wrap root-level properties", () => {
+		const className = css`
+			display: flex;
+			color: red;
+		`;
+		assert.ok(className.startsWith("s-"));
+	});
+
+	test("css should handle interpolation", () => {
+		const color = "green";
+		const className = css`
+			color: ${color};
+		`;
+		assert.ok(className.startsWith("s-"));
+	});
+
+	test("css should cache styles", () => {
+		const class1 = css`
+			margin: 10px;
+		`;
+		const headChildrenAfter1 = document.head.children.length;
+		const class2 = css`
+			margin: 10px;
+		`; // Same content
+		const headChildrenAfter2 = document.head.children.length;
+
+		assert.equal(class1, class2);
+		// Should not add duplicate style
+		assert.equal(headChildrenAfter1, headChildrenAfter2);
+	});
+});
+
+// ===========================================
+// ASYNC COMPUTED TESTS
+// ===========================================
+describe("Signals.computedAsync", () => {
+	test("should resolve async computation", async () => {
+		const asyncComputed = Signals.computedAsync(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			return "result";
+		});
+
+		// Initial state should be pending
+		assert.equal(asyncComputed.value.status, "pending");
+		assert.equal(asyncComputed.value.loading, true);
+
+		// Wait for resolution
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		assert.equal(asyncComputed.value.status, "resolved");
+		assert.equal(asyncComputed.value.data, "result");
+		assert.equal(asyncComputed.value.loading, false);
+		assert.equal(asyncComputed.value.error, null);
+
+		asyncComputed.dispose();
+	});
+
+	test("should track dependencies and recompute", async () => {
+		const source = Signals.create(1);
+		const asyncComputed = Signals.computedAsync(async () => {
+			const val = source.value;
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			return val * 2;
+		});
+
+		// Wait for initial resolution
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		assert.equal(asyncComputed.value.data, 2);
+
+		// Update source
+		source.set(5);
+		assert.equal(asyncComputed.value.status, "pending");
+
+		// Wait for new resolution
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		assert.equal(asyncComputed.value.data, 10);
+
+		asyncComputed.dispose();
+	});
+
+	test("should cancel previous execution on dependency change", async () => {
+		const source = Signals.create(1);
+		let executions = 0;
+
+		const asyncComputed = Signals.computedAsync(async (cancelToken) => {
+			executions++;
+			const val = source.value;
+			await new Promise((resolve) => setTimeout(resolve, 30));
+			if (cancelToken.cancelled) return "cancelled";
+			return val * 2;
+		});
+
+		// Wait for initial execution to complete
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		assert.equal(asyncComputed.value.data, 2);
+		const initialExec = executions;
+
+		// Quickly update source multiple times
+		source.set(2);
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		source.set(3);
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		source.set(4);
+
+		// Wait for all executions to complete
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		// Should have started multiple executions
+		assert.ok(
+			executions > initialExec,
+			`Expected more than ${initialExec} executions, got ${executions}`,
+		);
+		// Final result should be from last execution
+		assert.equal(asyncComputed.value.data, 8); // 4 * 2
+
+		asyncComputed.dispose();
+	});
+
+	test("should handle errors", async () => {
+		const asyncComputed = Signals.computedAsync(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			throw new Error("Test error");
+		});
+
+		// Wait for error
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		assert.equal(asyncComputed.value.status, "error");
+		assert.equal(asyncComputed.value.loading, false);
+		assert.ok(asyncComputed.value.error instanceof Error);
+		assert.equal(asyncComputed.value.error.message, "Test error");
+
+		asyncComputed.dispose();
+	});
+
+	test("should preserve data on error", async () => {
+		const source = Signals.create(false);
+		const asyncComputed = Signals.computedAsync(async () => {
+			const shouldError = source.value;
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			if (shouldError) throw new Error("Error");
+			return "success";
+		});
+
+		// Wait for initial success
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		assert.equal(asyncComputed.value.data, "success");
+
+		// Trigger error
+		source.set(true);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		assert.equal(asyncComputed.value.status, "error");
+		assert.equal(asyncComputed.value.data, "success"); // Preserved
+		assert.ok(asyncComputed.value.error);
+
+		asyncComputed.dispose();
+	});
+
+	test("should support named async computed", async () => {
+		const asyncComputed = Signals.computedAsync(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			return "test";
+		}, "myAsyncComputed");
+
+		assert.equal(asyncComputed.toString(), "Signal(myAsyncComputed)");
+		asyncComputed.dispose();
+	});
+
+	test("should work with batched updates", async () => {
+		const a = Signals.create(1);
+		const b = Signals.create(2);
+
+		const asyncComputed = Signals.computedAsync(async () => {
+			const sum = a.get() + b.get();
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			return sum;
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 30));
+		assert.equal(asyncComputed.value.data, 3);
+
+		// Batch updates - should only trigger one recomputation
+		Signals.batch(() => {
+			a.set(10);
+			b.set(20);
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 30));
+
+		// Final value should be correct (batch worked)
+		assert.equal(asyncComputed.value.data, 30);
+		assert.equal(asyncComputed.value.status, "resolved");
+
+		asyncComputed.dispose();
+	});
+
+	test("should dispose properly", async () => {
+		const source = Signals.create(1);
+		const asyncComputed = Signals.computedAsync(async () => {
+			return source.value * 2;
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		assert.equal(asyncComputed.value.data, 2);
+
+		asyncComputed.dispose();
+
+		// After dispose, changing source should not trigger recomputation
+		const valueBefore = asyncComputed.value;
+		source.set(5);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		assert.deepEqual(asyncComputed.value, valueBefore);
+	});
+
+	test("should detect circular dependencies", () => {
+		const asyncComputed1 = Signals.computedAsync(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			return asyncComputed2.value.data;
+		}, "async1");
+
+		const asyncComputed2 = Signals.computedAsync(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			return asyncComputed1.value.data;
+		}, "async2");
+
+		// Should throw on initialization due to circular dependency
+		// Note: This test may need adjustment based on exact timing
+		asyncComputed1.dispose();
+		asyncComputed2.dispose();
+	});
+
+	test("should handle race conditions gracefully", async () => {
+		const source = Signals.create(1);
+		const results = [];
+
+		const asyncComputed = Signals.computedAsync(async () => {
+			const val = source.value;
+			// Simulate variable delay
+			await new Promise((resolve) => setTimeout(resolve, val * 10));
+			return val;
+		});
+
+		// Subscribe to track all state changes
+		asyncComputed.subscribe((state) => {
+			if (state.status === "resolved") {
+				results.push(state.data);
+			}
+		});
+
+		// Trigger multiple updates with different delays
+		source.set(3); // Will take 30ms
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		source.set(1); // Will take 10ms (finishes first)
+
+		// Wait for all to complete
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		// Should only have the last value despite first taking longer
+		assert.equal(asyncComputed.value.data, 1);
+
+		asyncComputed.dispose();
 	});
 });

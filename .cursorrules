@@ -35,7 +35,8 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - **Classes**: PascalCase (e.g., `CommandHandler`, `FileManager`)
 - **Constants**: UPPER_SNAKE_CASE for config objects (e.g., `CONFIG`, `MIME_TYPES`)
 - **Variables/functions**: camelCase (e.g., `loadSettings`, `appPkg`)
-- **Private fields**: Prefix with `#` (e.g., `#log`, `#colors`)
+- **Private class fields**: Prefix with `#` (e.g., `#log`, `#colors`)
+- **Private module-level variables**: Prefix with `_` (e.g., `_activeContext`, `_batchPending`)
 - **Unused variables**: Prefix with `_` if intentionally unused (but prefer removing them)
 
 ### File Structure
@@ -79,8 +80,23 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 ## Testing
 - Unit tests in `/test/` directory using Node.js built-in test runner
 - Run tests with `npm test`
-- Test coverage: 40 tests covering all major classes (MicrotasticError, Logger, FileManager, DevServer, CommandHandler, Microtastic)
+- Test coverage: 141 tests covering all major classes and reactive system
+  - Core classes: MicrotasticError, Logger, FileManager, DevServer, CommandHandler, Microtastic (40 tests)
+  - Reactive system: Signals, computed, HTML utilities, CSS-in-JS, binding methods, components (101 tests)
 - Manual testing via CLI commands: init, prep, dev, prod, version
+
+## Reactive System (reactive.js)
+- **Signals-based reactivity**: Fine-grained reactive state management
+- **Signal naming**: Support for named signals for debugging (`Signals.create(0, undefined, "name")`)
+- **peek() method**: Read signal values without tracking dependencies
+- **Async computed**: `Signals.computedAsync()` for async operations (API calls, heavy computations)
+  - Returns state object: `{ status, data, error, loading }`
+  - Automatic cancellation when dependencies change
+  - Uses dedicated context per execution to avoid pollution
+- **Circular dependency detection**: Prevents infinite loops in computed signals with descriptive error messages
+- **Debug mode**: `setDebugMode(true)` enables logging of all signal updates and computed recalculations
+- **Batching**: Automatic batching in event handlers and manual batching with `Signals.batch()`
+- **Module-level private variables**: Use `_` prefix (e.g., `_activeContext`, `_debugMode`, `_computeStack`)
 
 ## Notes
 - This is a CLI tool, not a web application
