@@ -8,6 +8,23 @@ class App extends Reactive.Component {
 		};
 	}
 
+	mount() {
+		// Use computedAsync to fetch a random repo whenever the count changes
+		this.randomRepo = this.computedAsync(async () => {
+			// We still want to re-fetch when the count changes, so we get it here.
+			this.count.get();
+			// Use the GitHub API to get a list of public repositories
+			const response = await fetch("https://api.github.com/repositories");
+			if (!response.ok) {
+				throw new Error("Network response was not ok.");
+			}
+			const repos = await response.json();
+			// Pick a random repository from the list
+			const randomRepo = repos[Math.floor(Math.random() * repos.length)];
+			return `Random repo: ${randomRepo.full_name}`;
+		}, "randomRepo");
+	}
+
 	styles() {
 		return css`
 			max-width: 600px;
@@ -50,6 +67,27 @@ class App extends Reactive.Component {
 				margin: 10px 0;
 				width: 200px;
 			}
+
+			.repo {
+				background: #eef;
+				padding: 15px;
+				border-left: 4px solid #77f;
+				margin-top: 20px;
+				min-height: 50px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.repo-loading {
+				opacity: 0.5;
+			}
+
+			.repo-error {
+				background: #fee;
+				border-left-color: #f77;
+				color: #c00;
+			}
 		`;
 	}
 
@@ -75,6 +113,8 @@ class App extends Reactive.Component {
 						/>
 					</label>
 				</div>
+
+				<div data-bind="randomRepo"></div>
 			</div>
 		`;
 	}
@@ -89,6 +129,22 @@ class App extends Reactive.Component {
 
 	reset() {
 		this.count.set(0);
+	}
+
+	// Custom binding handler for the randomRepo computedAsync signal
+	bind_randomRepo(el, signal) {
+		return signal.subscribe((state) => {
+			el.className = "repo"; // Reset classes
+			if (state.loading) {
+				el.classList.add("repo-loading");
+				el.textContent = "Fetching from GitHub...";
+			} else if (state.error) {
+				el.classList.add("repo-error");
+				el.textContent = `Error: ${state.error.message}`;
+			} else if (state.resolved) {
+				el.textContent = state.data;
+			}
+		});
 	}
 }
 
