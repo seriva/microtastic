@@ -36,8 +36,12 @@ const CONFIG = { PORT: 8181 };
 const loadSettings = () => {};
 const appPkg = {};
 
-// Private fields: # prefix
+// Private class fields: # prefix
 #log = () => {};
+
+// Private module-level variables: _ prefix
+let _activeContext = null;
+const _batchQueue = new Set();
 
 // Intentionally unused: _ prefix (but prefer removal)
 const _unused = value;
@@ -83,7 +87,9 @@ throw new MicrotasticError(
 ## Testing
 - Unit tests in `/test/` directory using Node.js built-in test runner
 - Run with `npm test`
-- 35 tests covering all major classes
+- 151 tests covering all major classes and reactive system
+  - Core CLI classes: 40 tests (MicrotasticError, Logger, FileManager, DevServer, CommandHandler, Microtastic)
+  - Reactive system: 111 tests (Signals, computed, async computed, HTML utilities, CSS-in-JS, binding methods, components)
 - Tests use Node.js built-in `node:test` module (no external dependencies)
 
 ## Best Practices
