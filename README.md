@@ -655,6 +655,7 @@ counter.mountTo("app");
 
 - `this.signal(value)` - Create a signal
 - `this.computed(fn)` - Create computed signal (auto-cleaned)
+- `this.computedAsync(fn)` - Create async computed signal (auto-cleaned)
 - `this.effect(fn)` - Run side effect when dependencies change
 - `this.batch(fn)` - Batch updates
 - `this.track(fn)` - Track subscription for cleanup
@@ -751,9 +752,15 @@ Reactive.mount(document.body, app);
 import { Reactive, html, css } from './reactive.js';
 
 class UserCard extends Reactive.Component {
-	constructor(user) {
+	constructor(userId) {
 		super();
-		this.user = user;
+		this.userId = this.signal(userId);
+		this.user = this.computedAsync(async (cancel) => {
+			// This will be re-run when this.userId changes
+			const res = await fetch(`/api/users/${this.userId.get()}`);
+			if (cancel.cancelled) return; // Don't update if a new request has started
+			return res.json();
+		});
 	}
 	
 	state() {
@@ -776,14 +783,22 @@ class UserCard extends Reactive.Component {
 	template() {
 		return html`
 			<div data-class-expanded="expanded">
-				<h3>${this.user.name}</h3>
-				<div data-visible="expanded">
-					<p>Email: ${this.user.email}</p>
-					<p>Age: ${this.user.age}</p>
-				</div>
-				<button data-on-click="toggle">
-					${this.computed(() => this.expanded.get() ? 'Collapse' : 'Expand')}
-				</button>
+				${() => {
+					const state = this.user.get();
+					if (state.loading) return html`<h3>Loading...</h3>`;
+					if (state.error) return html`<h3>Error: ${state.error.message}</h3>`;
+					
+					const user = state.data;
+					return html`
+						<h3>${user.name}</h3>
+						<div data-visible="expanded">
+							<p>Email: ${user.email}</p>
+						</div>
+						<button data-on-click="toggle">
+							${this.computed(() => this.expanded.get() ? 'Collapse' : 'Expand')}
+						</button>
+					`;
+				}}
 			</div>
 		`;
 	}
@@ -794,26 +809,26 @@ class UserCard extends Reactive.Component {
 }
 
 // Usage
-const users = [
-	{ name: "Alice", email: "alice@example.com", age: 30 },
-	{ name: "Bob", email: "bob@example.com", age: 25 }
-];
-
-users.forEach(user => {
-	const card = new UserCard(user);
+const userIds = [1, 2];
+userIds.forEach(id => {
+	const card = new UserCard(id);
 	card.appendTo("app");
 });
 ```
 
 ### Best Practices
 
-1. **Use signals for reactive state** - Prefer `Signals.create()` over plain variables
-2. **Batch multiple updates** - Use `Signals.batch()` to avoid intermediate renders
-3. **Clean up subscriptions** - Always call cleanup functions or use Components
-4. **Use computed for derived state** - Create computed signals for values derived from others
-5. **Prefer declarative bindings** - Use `data-*` attributes with `Reactive.scan()`
-6. **Component state management** - Use `state()` method to automatically convert values
-7. **CSS scoping** - Use `css` template tag for component-scoped styles
-8. **HTML safety** - Always use `html` template tag for automatic XSS protection
-9. **Refs for DOM access** - Use `data-ref` and `this.refs` instead of `querySelector`
-10. **Effect cleanup** - Use `this.effect()` in components for side effects
+1. **Use signals for reactive state** - Prefer `Signals.create()` over plain variables.
+2. **Name your signals** - Provide a name for signals and computed signals (e.g., `Signals.create(0, undefined, "counter")`) for easier debugging.
+3. **Batch multiple updates** - Use `Signals.batch()` to avoid intermediate renders.
+4. **Clean up subscriptions** - Always call cleanup functions or use Components for automatic cleanup.
+5. **Use computed for derived state** - Create computed signals for values derived from others.
+6. **Handle async with `computedAsync`** - For data fetching, use `computedAsync` for built-in state management and cancellation.
+7. **Use `peek()` to avoid dependencies** - Inside a computed, use `signal.peek()` to read a value without creating a dependency.
+8. **Prefer declarative bindings** - Use `data-*` attributes with `Reactive.scan()`.
+9. **Component state management** - Use `state()` method to automatically convert values.
+10. **CSS scoping** - Use `css` template tag for component-scoped styles.
+11. **HTML safety** - Always use `html` template tag for automatic XSS protection.
+12. **Refs for DOM access** - Use `data-ref` and `this.refs` instead of `querySelector`.
+13. **Effect cleanup** - Use `this.effect()` in components for side effects that are automatically cleaned up.
+14. **Conditional rendering with functions** - Embed functions in `html` templates for dynamic rendering logic.
