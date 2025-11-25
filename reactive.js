@@ -570,6 +570,11 @@ export const Reactive = {
 				computed.push(s);
 				return s;
 			},
+			computedAsync: (fn, name) => {
+				const s = Signals.computedAsync(fn, name);
+				computed.push(s); // Track for disposal
+				return s;
+			},
 			scan: (r, s) => c.track(Reactive.scan(r, s)),
 			cleanup: () => {
 				for (const f of unsubs) {
@@ -623,6 +628,11 @@ export const Reactive = {
 		}
 		computed(fn, name) {
 			return this._c.computed(fn, name);
+		}
+		computedAsync(fn, name) {
+			const asyncComputed = Signals.computedAsync(fn, name);
+			this.track(() => asyncComputed.dispose());
+			return asyncComputed;
 		}
 		effect(fn) {
 			return this.computed(() => {
