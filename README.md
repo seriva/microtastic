@@ -644,10 +644,16 @@ counter.mountTo("app");
 
 #### Component Lifecycle
 
-- `state()` - Returns initial state (functions → computed, primitives → signals, existing signals preserved)
+Components follow a predictable lifecycle flow:
+
+1. `state()` - Returns initial state (functions → computed, primitives → signals, existing signals preserved)
+2. `init()` - Called after state initialization, before rendering (optional) - ideal for creating computed/async signals that depend on state
+3. `render()` - Creates and returns DOM element from `template()` with `styles()` applied
+4. `mount()` - Called after component is mounted to the DOM (optional) - use for side effects that need the DOM
+
+Additional hooks:
 - `styles()` - Returns CSS class name (optional)
 - `template()` - Returns HTML template (required)
-- `mount()` - Called after component is mounted (optional)
 - `onCleanup()` - Called during cleanup (optional)
 - `cleanup()` - Manually cleanup subscriptions
 

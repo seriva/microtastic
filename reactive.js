@@ -645,6 +645,7 @@ export const Reactive = {
 		}
 		initState() {
 			if (this.state) this._proc(this.state(), this);
+			if (this.init) this.init();
 		}
 		_proc(obj, tgt) {
 			Object.entries(obj).forEach(([k, v]) => {

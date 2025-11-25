@@ -87,10 +87,18 @@ throw new MicrotasticError(
 ## Testing
 - Unit tests in `/test/` directory using Node.js built-in test runner
 - Run with `npm test`
-- 151 tests covering all major classes and reactive system
+- 159 tests covering all major classes and reactive system
   - Core CLI classes: 40 tests (MicrotasticError, Logger, FileManager, DevServer, CommandHandler, Microtastic)
-  - Reactive system: 111 tests (Signals, computed, async computed, HTML utilities, CSS-in-JS, binding methods, components)
+  - Reactive system: 119 tests (Signals, computed, async computed, HTML utilities, CSS-in-JS, binding methods, components, lifecycle)
 - Tests use Node.js built-in `node:test` module (no external dependencies)
+
+## Reactive.js Component Lifecycle
+- **`state()`**: Returns initial state (functions → computed, primitives → signals, existing signals preserved)
+- **`init()`**: Called after state initialization, before rendering (optional) - ideal for creating computed/async signals that depend on state
+- **`render()`**: Creates DOM element from `template()` with `styles()` applied
+- **`mount()`**: Called after component is mounted to DOM (optional) - use for side effects that need the DOM
+- **`onCleanup()`**: Called during cleanup (optional)
+- **Execution order**: `state()` → `init()` → `render()` → `mount()`
 
 ## Best Practices
 1. Keep functions **focused and single-purpose**
