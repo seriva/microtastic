@@ -80,9 +80,9 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 ## Testing
 - Unit tests in `/test/` directory using Node.js built-in test runner
 - Run tests with `npm test`
-- Test coverage: 141 tests covering all major classes and reactive system
+- Test coverage: 159 tests covering all major classes and reactive system
   - Core classes: MicrotasticError, Logger, FileManager, DevServer, CommandHandler, Microtastic (40 tests)
-  - Reactive system: Signals, computed, HTML utilities, CSS-in-JS, binding methods, components (101 tests)
+  - Reactive system: Signals, computed, HTML utilities, CSS-in-JS, binding methods, components, lifecycle (119 tests)
 - Manual testing via CLI commands: init, prep, dev, prod, version
 
 ## Reactive System (reactive.js)
@@ -97,6 +97,12 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - **Debug mode**: `setDebugMode(true)` enables logging of all signal updates and computed recalculations
 - **Batching**: Automatic batching in event handlers and manual batching with `Signals.batch()`
 - **Module-level private variables**: Use `_` prefix (e.g., `_activeContext`, `_debugMode`, `_computeStack`)
+- **Component lifecycle**: `state()` → `init()` → `render()` → `mount()`
+  - `state()`: Returns initial state (auto-converted to signals)
+  - `init()`: Called after state init, before render (optional) - create computed/async signals here
+  - `render()`: Creates DOM from `template()` with `styles()`
+  - `mount()`: Called after DOM mount (optional) - use for side effects
+  - `onCleanup()`: Called during cleanup (optional)
 
 ## Notes
 - This is a CLI tool, not a web application

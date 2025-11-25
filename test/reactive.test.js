@@ -1091,6 +1091,222 @@ describe("Reactive.scan", () => {
 		assert.equal(component.cleaned, true);
 	});
 
+	test("should call init() lifecycle hook after state initialization", () => {
+		class InitComponent extends Reactive.Component {
+			constructor() {
+				super();
+				this.initCalled = false;
+				this.stateInitialized = false;
+			}
+			state() {
+				return {
+					count: 0,
+				};
+			}
+			init() {
+				// Check that state signals exist
+				assert.ok(this.count);
+				assert.ok(this.count.get);
+				assert.equal(this.count.get(), 0);
+				this.initCalled = true;
+				this.stateInitialized = true;
+			}
+			template() {
+				return html`<div>Test</div>`;
+			}
+		}
+
+		const component = new InitComponent();
+		assert.equal(component.initCalled, false);
+
+		component.initState();
+		assert.equal(component.initCalled, true);
+		assert.equal(component.stateInitialized, true);
+
+		component.cleanup();
+	});
+
+	test("should call init() with access to state signals", () => {
+		class StateAccessComponent extends Reactive.Component {
+			state() {
+				return {
+					firstName: "John",
+					lastName: "Doe",
+				};
+			}
+			init() {
+				// Create computed signal that depends on state
+				this.fullName = this.computed(
+					() => `${this.firstName.get()} ${this.lastName.get()}`,
+				);
+			}
+			template() {
+				return html`<div data-text="fullName"></div>`;
+			}
+		}
+
+		const component = new StateAccessComponent();
+		component.initState();
+
+		assert.ok(component.fullName);
+		assert.equal(component.fullName.get(), "John Doe");
+
+		component.firstName.set("Jane");
+		assert.equal(component.fullName.get(), "Jane Doe");
+
+		component.cleanup();
+	});
+
+	test("should call init() with computedAsync signals", () => {
+		class AsyncInitComponent extends Reactive.Component {
+			state() {
+				return {
+					userId: 1,
+				};
+			}
+			init() {
+				this.userData = this.computedAsync(async () => {
+					const id = this.userId.get();
+					return { id, name: `User ${id}` };
+				});
+			}
+			template() {
+				return html`<div>Test</div>`;
+			}
+		}
+
+		const component = new AsyncInitComponent();
+		component.initState();
+
+		assert.ok(component.userData);
+		const state = component.userData.get();
+		assert.equal(state.status, "pending");
+
+		component.cleanup();
+	});
+
+	test("should execute lifecycle in correct order: state -> init -> render -> mount", () => {
+		const executionOrder = [];
+
+		class OrderComponent extends Reactive.Component {
+			state() {
+				executionOrder.push("state");
+				return { value: 1 };
+			}
+			init() {
+				executionOrder.push("init");
+			}
+			template() {
+				executionOrder.push("template");
+				return html`<div>Test</div>`;
+			}
+			mount() {
+				executionOrder.push("mount");
+			}
+		}
+
+		const container = document.createElement("div");
+		container.id = "order-test";
+		document.body.appendChild(container);
+
+		const component = new OrderComponent();
+		component.mountTo("order-test");
+
+		assert.deepEqual(executionOrder, ["state", "init", "template", "mount"]);
+
+		component.cleanup();
+		document.body.removeChild(container);
+	});
+
+	test("should execute lifecycle in correct order with appendTo", () => {
+		const executionOrder = [];
+
+		class AppendOrderComponent extends Reactive.Component {
+			state() {
+				executionOrder.push("state");
+				return { value: 1 };
+			}
+			init() {
+				executionOrder.push("init");
+			}
+			template() {
+				executionOrder.push("template");
+				return html`<div>Test</div>`;
+			}
+			mount() {
+				executionOrder.push("mount");
+			}
+		}
+
+		const container = document.createElement("div");
+		container.id = "append-order-test";
+		document.body.appendChild(container);
+
+		const component = new AppendOrderComponent();
+		component.appendTo("append-order-test");
+
+		assert.deepEqual(executionOrder, ["state", "init", "template", "mount"]);
+
+		component.cleanup();
+		document.body.removeChild(container);
+	});
+
+	test("should work without init() hook (optional)", () => {
+		class NoInitComponent extends Reactive.Component {
+			state() {
+				return { count: 0 };
+			}
+			template() {
+				return html`<div data-text="count"></div>`;
+			}
+		}
+
+		const container = document.createElement("div");
+		container.id = "no-init-test";
+		document.body.appendChild(container);
+
+		const component = new NoInitComponent();
+		// Should not throw
+		component.mountTo("no-init-test");
+
+		assert.equal(component.count.get(), 0);
+
+		component.cleanup();
+		document.body.removeChild(container);
+	});
+
+	test("should allow creating multiple computed signals in init()", () => {
+		class MultiComputedComponent extends Reactive.Component {
+			state() {
+				return {
+					count: 0,
+				};
+			}
+			init() {
+				this.doubled = this.computed(() => this.count.get() * 2);
+				this.tripled = this.computed(() => this.count.get() * 3);
+				this.quadrupled = this.computed(() => this.count.get() * 4);
+			}
+			template() {
+				return html`<div>Test</div>`;
+			}
+		}
+
+		const component = new MultiComputedComponent();
+		component.initState();
+
+		assert.equal(component.doubled.get(), 0);
+		assert.equal(component.tripled.get(), 0);
+		assert.equal(component.quadrupled.get(), 0);
+
+		component.count.set(5);
+		assert.equal(component.doubled.get(), 10);
+		assert.equal(component.tripled.get(), 15);
+		assert.equal(component.quadrupled.get(), 20);
+
+		component.cleanup();
+	});
+
 	test("should apply styles from styles() method", () => {
 		class StyledComponent extends Reactive.Component {
 			template() {

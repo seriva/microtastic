@@ -8,10 +8,10 @@ class App extends Reactive.Component {
 		};
 	}
 
-	mount() {
-		// Use computedAsync to fetch a random repo whenever the count changes
-		this.randomRepo = this.computedAsync(async () => {
-			// We still want to re-fetch when the count changes, so we get it here.
+	init() {
+		// Create the async repo fetcher that depends on count
+		this.asyncRepo = this.computedAsync(async () => {
+			// Re-fetch when the count changes
 			this.count.get();
 			// Use the GitHub API to get a list of public repositories
 			const response = await fetch("https://api.github.com/repositories");
@@ -23,6 +23,23 @@ class App extends Reactive.Component {
 			const randomRepo = repos[Math.floor(Math.random() * repos.length)];
 			return `Random repo: ${randomRepo.full_name}`;
 		}, "randomRepo");
+
+		// Create computed signals for the template
+		this.repoText = this.computed(() => {
+			const state = this.asyncRepo.get();
+			if (state.loading) return "Fetching from GitHub...";
+			if (state.error) return `Error: ${state.error.message}`;
+			if (state.status === "resolved") return state.data;
+			return "";
+		});
+
+		this.repoClass = this.computed(() => {
+			const state = this.asyncRepo.get();
+			let classes = "repo";
+			if (state.loading) classes += " repo-loading";
+			if (state.error) classes += " repo-error";
+			return classes;
+		});
 	}
 
 	styles() {
@@ -114,7 +131,7 @@ class App extends Reactive.Component {
 					</label>
 				</div>
 
-				<div data-bind="randomRepo"></div>
+				<div data-attr-class="repoClass" data-text="repoText"></div>
 			</div>
 		`;
 	}
@@ -129,22 +146,6 @@ class App extends Reactive.Component {
 
 	reset() {
 		this.count.set(0);
-	}
-
-	// Custom binding handler for the randomRepo computedAsync signal
-	bind_randomRepo(el, signal) {
-		return signal.subscribe((state) => {
-			el.className = "repo"; // Reset classes
-			if (state.loading) {
-				el.classList.add("repo-loading");
-				el.textContent = "Fetching from GitHub...";
-			} else if (state.error) {
-				el.classList.add("repo-error");
-				el.textContent = `Error: ${state.error.message}`;
-			} else if (state.resolved) {
-				el.textContent = state.data;
-			}
-		});
 	}
 }
 
