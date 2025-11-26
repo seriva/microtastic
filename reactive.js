@@ -662,7 +662,12 @@ export const Reactive = {
 			});
 		}
 		scan(r) {
-			// Collect refs
+			// Collect refs - check the root element first, then descendants
+			// querySelectorAll only finds descendants, not the element itself
+			if (r.hasAttribute?.("data-ref")) {
+				const refName = r.getAttribute("data-ref");
+				if (refName) this.refs[refName] = r;
+			}
 			r.querySelectorAll("[data-ref]").forEach((el) => {
 				const refName = el.getAttribute("data-ref");
 				if (refName) this.refs[refName] = el;
