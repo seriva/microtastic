@@ -241,10 +241,6 @@ import { Signals, Reactive, html, css } from './reactive.js';
 
 For detailed examples, see the [Examples](#examples) section below.
 
-```javascript
-import { Signals, Reactive, html, css } from './reactive.js';
-```
-
 ### Signals
 
 Signals are reactive primitives that track dependencies and update subscribers automatically.
