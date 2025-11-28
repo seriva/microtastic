@@ -2,6 +2,8 @@
 
 Microtastic is a tiny (~1,200 line) development environment that combines the best ideas from [Snowpack](https://www.snowpack.dev/)'s unbundled development workflow with signals-based reactivity inspired by libraries like [SolidJS](https://www.solidjs.com/), [Alpine.js](https://alpinejs.dev/), and [Preact Signals](https://preactjs.com/guide/v10/signals/). The result is a lightweight, opinionated toolchain for building browser applications in pure ES6 without the overtooling and dependency hell of complex build systems.
 
+**📚 [View the full API documentation](https://seriva.github.io/microtastic/)**
+
 Like **Snowpack**, Microtastic uses [Rollup](https://rollupjs.org/) to convert CommonJS and multi-file ES6 modules into single-file ES6 modules during development. These can be imported directly in the browser without rebundling on every change, enabling fast development cycles. For production builds, Rollup handles bundling with tree-shaking and code-splitting to create optimized output.
 
 Microtastic includes **reactive.js**, a signals-based reactive state management library that brings together the fine-grained reactivity of **SolidJS**-style signals, the declarative data-attribute bindings of **Alpine.js**, and the template literal approach of libraries like **Lit**. This gives you a complete reactive development experience without heavy frameworks.

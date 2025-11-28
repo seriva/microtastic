@@ -6,7 +6,27 @@
 // ===========================================
 // HTML UTILITIES
 // ===========================================
+
+/**
+ * @typedef {Object} SafeHTML
+ * @property {boolean} __safe - Indicates the content is safe HTML
+ * @property {string} content - The HTML content
+ */
+
 let _escapeElement;
+
+/**
+ * Tagged template literal for creating safe HTML content with automatic escaping.
+ * Values are automatically escaped unless they are SafeHTML objects.
+ *
+ * @param {TemplateStringsArray} strings - Template string parts
+ * @param {...*} values - Template values to interpolate
+ * @returns {SafeHTML} Safe HTML object
+ * @example
+ * const userInput = "<script>alert('xss')</script>";
+ * const safe = html`<div>${userInput}</div>`;
+ * // Results in: <div>&lt;script&gt;alert('xss')&lt;/script&gt;</div>
+ */
 export const html = (strings, ...values) => ({
 	__safe: true,
 	content: strings.reduce((acc, str, i) => {
@@ -19,7 +39,26 @@ export const html = (strings, ...values) => ({
 	}, ""),
 });
 
+/**
+ * Marks content as trusted HTML that should not be escaped.
+ * Use with caution - only for content you control.
+ *
+ * @param {string} content - HTML content to mark as trusted
+ * @returns {SafeHTML} Safe HTML object
+ * @example
+ * const icon = trusted("<svg>...</svg>");
+ */
 export const trusted = (content) => ({ __safe: true, content });
+
+/**
+ * Joins multiple items (strings or SafeHTML) with a separator.
+ *
+ * @param {Array<string|SafeHTML>} items - Items to join
+ * @param {string|SafeHTML} [separator=""] - Separator to use between items
+ * @returns {SafeHTML} Safe HTML object with joined content
+ * @example
+ * const list = join([html`<li>A</li>`, html`<li>B</li>`], "\n");
+ */
 export const join = (items, separator = "") => ({
 	__safe: true,
 	content: items
@@ -29,6 +68,21 @@ export const join = (items, separator = "") => ({
 
 // CSS-in-JS
 const _styleCache = new Set();
+
+/**
+ * Creates scoped CSS with automatic class name generation and injection.
+ * Supports nested selectors with & and automatic prefixing.
+ *
+ * @param {TemplateStringsArray} strings - Template string parts
+ * @param {...*} values - Template values to interpolate
+ * @returns {string} Generated CSS class name
+ * @example
+ * const buttonClass = css`
+ *   padding: 10px;
+ *   &:hover { background: blue; }
+ *   .icon { margin-right: 5px; }
+ * `;
+ */
 export const css = (strings, ...values) => {
 	const content = strings.reduce(
 		(acc, str, i) => acc + str + (values[i] || ""),
@@ -117,7 +171,41 @@ export const css = (strings, ...values) => {
 	return className;
 };
 
+// ===========================================
 // SIGNALS
+// ===========================================
+
+/**
+ * @typedef {Object} Signal
+ * @property {function(): *} get - Get the current value and track dependency
+ * @property {function(): *} peek - Get the current value without tracking
+ * @property {function(*): void} set - Set a new value
+ * @property {function(function(*): void): function(): void} subscribe - Subscribe to changes
+ * @property {function(function(*): void): function(): void} subscribeInternal - Internal subscription without immediate call
+ * @property {function(function(*): void): function(): void} once - Subscribe and automatically unsubscribe after first call
+ * @property {function(function(*): *): void} update - Update value using a function
+ * @property {*} value - Getter/setter property for the signal value
+ */
+
+/**
+ * @typedef {Object} ComputedSignal
+ * @extends Signal
+ * @property {function(): void} dispose - Clean up subscriptions and dependencies
+ */
+
+/**
+ * @typedef {Object} AsyncState
+ * @property {"pending"|"resolved"|"error"} status - Current status of the async operation
+ * @property {*} data - The resolved data (undefined until resolved)
+ * @property {Error|null} error - Error object if status is "error"
+ * @property {boolean} loading - True when status is "pending"
+ */
+
+/**
+ * @typedef {Object} CancelToken
+ * @property {boolean} cancelled - True if the operation was cancelled
+ */
+
 let _activeContext = null;
 let _batchPending = false;
 const _batchQueue = new Set();
@@ -125,6 +213,15 @@ const _batchWrappers = new WeakMap();
 
 // Debug mode
 let _debugMode = false;
+
+/**
+ * Enable or disable debug mode for reactive system logging.
+ * When enabled, logs signal updates, computed recalculations, and async state changes.
+ *
+ * @param {boolean} enabled - Whether to enable debug mode
+ * @example
+ * setDebugMode(true); // Enable debug logging
+ */
 export const setDebugMode = (enabled) => {
 	_debugMode = enabled;
 };
@@ -135,7 +232,26 @@ const _debugLog = (...args) => {
 // Circular dependency detection for computed values
 const _computeStack = [];
 
+/**
+ * Core Signals API for reactive state management.
+ * Provides primitives for creating reactive values, computed values, and async computations.
+ * @namespace Signals
+ */
 export const Signals = {
+	/**
+	 * Creates a reactive signal that holds a single value.
+	 * Signals track dependencies and notify subscribers when the value changes.
+	 *
+	 * @param {*} value - Initial value
+	 * @param {function(*, *): boolean} [equals=(a, b) => a === b] - Equality function to determine if value changed
+	 * @param {string|null} [name=null] - Optional name for debugging
+	 * @returns {Signal} Signal object with get/set/subscribe methods
+	 * @example
+	 * const count = Signals.create(0, undefined, "count");
+	 * count.set(5);
+	 * console.log(count.get()); // 5
+	 * count.subscribe(val => console.log("Changed:", val));
+	 */
 	create(value, equals = (a, b) => a === b, name = null) {
 		const subs = new Set();
 		const signal = {
@@ -210,6 +326,20 @@ export const Signals = {
 		return signal;
 	},
 
+	/**
+	 * Creates a computed signal that automatically recalculates when dependencies change.
+	 * Dependencies are tracked automatically when accessed inside the computation function.
+	 *
+	 * @param {function(): *} fn - Computation function that returns the computed value
+	 * @param {string|null} [name=null] - Optional name for debugging
+	 * @returns {ComputedSignal} Computed signal with dispose method
+	 * @throws {Error} If circular dependency is detected
+	 * @example
+	 * const firstName = Signals.create("John");
+	 * const lastName = Signals.create("Doe");
+	 * const fullName = Signals.computed(() => `${firstName.get()} ${lastName.get()}`);
+	 * console.log(fullName.get()); // "John Doe"
+	 */
 	computed(fn, name = null) {
 		const result = Signals.create(undefined, undefined, name);
 		let deps = new Set();
@@ -280,6 +410,22 @@ export const Signals = {
 		return result;
 	},
 
+	/**
+	 * Creates a computed signal for async operations that tracks loading/error/data states.
+	 * Automatically cancels previous execution when dependencies change.
+	 *
+	 * @param {function(CancelToken): Promise<*>} fn - Async computation function
+	 * @param {string|null} [name=null] - Optional name for debugging
+	 * @returns {ComputedSignal<AsyncState>} Signal containing {status, data, error, loading}
+	 * @example
+	 * const userId = Signals.create(1);
+	 * const userData = Signals.computedAsync(async (cancel) => {
+	 *   const response = await fetch(`/api/users/${userId.get()}`);
+	 *   if (cancel.cancelled) return;
+	 *   return response.json();
+	 * });
+	 * // userData.get() returns {status: "pending", data: undefined, error: null, loading: true}
+	 */
 	computedAsync(fn, name = null) {
 		const result = Signals.create(
 			{ status: "pending", data: undefined, error: null, loading: true },
@@ -391,6 +537,19 @@ export const Signals = {
 		return result;
 	},
 
+	/**
+	 * Batches multiple signal updates to prevent redundant recalculations.
+	 * All updates within the function are queued and executed once at the end.
+	 *
+	 * @param {function(): *} fn - Function containing signal updates
+	 * @returns {*} Return value of the function
+	 * @example
+	 * Signals.effect(() => {
+	 *   count.set(1);
+	 *   count.set(2);
+	 *   count.set(3);
+	 * }); // Subscribers only notified once with value 3
+	 */
 	effect(fn) {
 		_batchPending = true;
 		try {
@@ -403,13 +562,35 @@ export const Signals = {
 		}
 	},
 
+	/**
+	 * Alias for effect(). Batches multiple signal updates together.
+	 *
+	 * @param {function(): *} fn - Function containing signal updates
+	 * @returns {*} Return value of the function
+	 * @see {@link Signals.effect}
+	 */
 	batch(fn) {
 		return Signals.effect(fn);
 	},
 };
 
+// ===========================================
 // REACTIVE UTILITIES
+// ===========================================
+
+/**
+ * Reactive utilities for DOM binding and component management.
+ * Provides methods to bind signals to DOM elements and manage reactive components.
+ * @namespace Reactive
+ */
 export const Reactive = {
+	/**
+	 * Mounts a reactive function to an element, updating its innerHTML.
+	 *
+	 * @param {HTMLElement} el - Target element
+	 * @param {function(): (string|SafeHTML)} fn - Function that returns content
+	 * @returns {{update: function(): void}} Object with update method
+	 */
 	mount(el, fn) {
 		const update = () => {
 			const res = fn();
@@ -418,6 +599,18 @@ export const Reactive = {
 		update();
 		return { update };
 	},
+
+	/**
+	 * Binds a signal to an element's innerHTML through a transformation function.
+	 *
+	 * @param {HTMLElement} el - Target element
+	 * @param {Signal} sig - Signal to bind
+	 * @param {function(*): (string|SafeHTML)} fn - Transform function
+	 * @returns {function(): void} Unsubscribe function
+	 * @example
+	 * const count = Signals.create(0);
+	 * Reactive.bind(div, count, val => html`Count: ${val}`);
+	 */
 	bind(el, sig, fn) {
 		return sig.subscribe((val) => {
 			const v = val === undefined ? sig.get() : val;
@@ -426,30 +619,101 @@ export const Reactive = {
 		});
 	},
 
+	/**
+	 * Binds a signal to an element's attribute.
+	 *
+	 * @param {HTMLElement} el - Target element
+	 * @param {string} attr - Attribute name
+	 * @param {Signal} sig - Signal to bind
+	 * @returns {function(): void} Unsubscribe function
+	 * @example
+	 * const url = Signals.create("/page");
+	 * Reactive.bindAttr(link, "href", url);
+	 */
 	bindAttr: (el, attr, sig) =>
 		sig.subscribe((val) =>
 			el.setAttribute(attr, val === undefined ? sig.get() : val),
 		),
+
+	/**
+	 * Binds a signal to an element's textContent.
+	 *
+	 * @param {HTMLElement} el - Target element
+	 * @param {Signal} sig - Signal to bind
+	 * @returns {function(): void} Unsubscribe function
+	 * @example
+	 * const message = Signals.create("Hello");
+	 * Reactive.bindText(span, message);
+	 */
 	bindText: (el, sig) =>
 		sig.subscribe((val) => {
 			el.textContent = val === undefined ? sig.get() : val;
 		}),
+
+	/**
+	 * Binds a signal to a boolean attribute (present/absent).
+	 *
+	 * @param {HTMLElement} el - Target element
+	 * @param {string} attr - Attribute name (e.g., "disabled", "hidden")
+	 * @param {Signal<boolean>} sig - Signal to bind
+	 * @returns {function(): void} Unsubscribe function
+	 * @example
+	 * const isDisabled = Signals.create(false);
+	 * Reactive.bindBoolAttr(button, "disabled", isDisabled);
+	 */
 	bindBoolAttr: (el, attr, sig) =>
 		sig.subscribe((val) =>
 			(val === undefined ? sig.get() : val)
 				? el.setAttribute(attr, "")
 				: el.removeAttribute(attr),
 		),
+
+	/**
+	 * Binds a signal to toggle a CSS class on an element.
+	 *
+	 * @param {HTMLElement} el - Target element
+	 * @param {string} cls - CSS class name
+	 * @param {Signal<boolean>} sig - Signal to bind
+	 * @returns {function(): void} Unsubscribe function
+	 * @example
+	 * const isActive = Signals.create(true);
+	 * Reactive.bindClass(div, "active", isActive);
+	 */
 	bindClass: (el, cls, sig) =>
 		sig.subscribe((val) =>
 			el.classList.toggle(cls, val === undefined ? sig.get() : val),
 		),
 
+	/**
+	 * Binds a signal to a CSS style property.
+	 *
+	 * @param {HTMLElement} el - Target element
+	 * @param {string} prop - CSS property name (camelCase)
+	 * @param {Signal} sig - Signal to bind
+	 * @returns {function(): void} Unsubscribe function
+	 * @example
+	 * const bgColor = Signals.create("red");
+	 * Reactive.bindStyle(div, "backgroundColor", bgColor);
+	 */
 	bindStyle: (el, prop, sig) =>
 		sig.subscribe((val) => {
 			el.style[prop] = val === undefined ? sig.get() : val;
 		}),
 
+	/**
+	 * Binds multiple signals to an element using a combine function.
+	 * Creates a computed signal that tracks all input signals.
+	 *
+	 * @param {HTMLElement} el - Target element
+	 * @param {Array<Signal>} signals - Array of signals to combine
+	 * @param {function(Array<*>): (string|SafeHTML)} fn - Function that combines signal values
+	 * @returns {function(): void} Unsubscribe function
+	 * @throws {Error} If signals is not an array
+	 * @example
+	 * const first = Signals.create("John");
+	 * const last = Signals.create("Doe");
+	 * Reactive.bindMultiple(div, [first, last], ([f, l]) => `${f} ${l}`);
+	 */
 	bindMultiple(el, signals, fn) {
 		if (!Array.isArray(signals)) {
 			throw new Error("bindMultiple expects an array of signals");
@@ -467,6 +731,19 @@ export const Reactive = {
 		};
 	},
 
+	/**
+	 * Scans a DOM tree for data attributes and binds them to signals in the scope.
+	 * Supports: data-text, data-html, data-visible, data-if, data-model,
+	 * data-class-*, data-attr-*, data-bool-*, data-on-*
+	 *
+	 * @param {HTMLElement} root - Root element to scan
+	 * @param {Object} scope - Object containing signals to bind
+	 * @returns {function(): void} Cleanup function to unbind all
+	 * @example
+	 * const scope = { message: Signals.create("Hello") };
+	 * // <div data-text="message"></div>
+	 * const cleanup = Reactive.scan(document.body, scope);
+	 */
 	scan(root, scope) {
 		const unsubs = [];
 		const resolve = (path) => path.split(".").reduce((o, k) => o?.[k], scope);
@@ -557,6 +834,18 @@ export const Reactive = {
 			for (const f of unsubs) f?.();
 		};
 	},
+
+	/**
+	 * Creates a component context for managing subscriptions and computed signals.
+	 * Provides methods for tracking cleanup functions and creating scoped reactivity.
+	 *
+	 * @returns {Object} Component context with track, computed, scan, bind methods
+	 * @example
+	 * const ctx = Reactive.createComponent();
+	 * const count = Signals.create(0);
+	 * ctx.bindText(element, count);
+	 * ctx.cleanup(); // Cleans up all bindings
+	 */
 	createComponent() {
 		const unsubs = [],
 			computed = [];
@@ -598,7 +887,37 @@ export const Reactive = {
 		return c;
 	},
 
+	/**
+	 * Base class for creating reactive components with lifecycle methods.
+	 * Provides automatic state management, DOM binding, and cleanup.
+	 *
+	 * Lifecycle methods (override in subclass):
+	 * - state(): Returns initial state object (converted to signals)
+	 * - init(): Called after state initialization, before rendering (optional)
+	 * - template(): Returns html tagged template for the component (required)
+	 * - styles(): Returns css class name for styling (optional)
+	 * - mount(): Called after component is mounted to DOM (optional)
+	 * - onCleanup(): Called during cleanup (optional)
+	 *
+	 * @class
+	 * @example
+	 * class Counter extends Reactive.Component {
+	 *   state() {
+	 *     return { count: 0 };
+	 *   }
+	 *   template() {
+	 *     return html`<button data-on-click="increment">${this.count}</button>`;
+	 *   }
+	 *   increment() {
+	 *     this.count.set(this.count.get() + 1);
+	 *   }
+	 * }
+	 */
 	Component: class {
+		/**
+		 * Creates a new component instance.
+		 * Initializes internal reactive context and binding methods.
+		 */
 		constructor() {
 			this._c = Reactive.createComponent();
 			this.refs = {};
@@ -615,9 +934,28 @@ export const Reactive = {
 				this[m] = (...a) => this._c[m](...a);
 			}
 		}
+
+		/**
+		 * Creates a signal within the component.
+		 *
+		 * @param {*} v - Initial value
+		 * @param {string} [name] - Optional name for debugging
+		 * @returns {Signal} Signal object
+		 */
 		signal(v, name) {
 			return Signals.create(v, undefined, name);
 		}
+
+		/**
+		 * Attaches an event listener that's automatically cleaned up.
+		 * Handler is wrapped in a batch for efficient updates.
+		 *
+		 * @param {EventTarget} target - Element to attach listener to
+		 * @param {string} event - Event name
+		 * @param {function(Event): void} handler - Event handler
+		 * @param {Object} [options] - Event listener options
+		 * @returns {function(Event): void} Bound handler function
+		 */
 		on(target, event, handler, options) {
 			const boundHandler = (e) => this.batch(() => handler.call(this, e));
 			target.addEventListener(event, boundHandler, options);
@@ -626,27 +964,74 @@ export const Reactive = {
 			);
 			return boundHandler;
 		}
+
+		/**
+		 * Creates a computed signal within the component.
+		 * Automatically disposed when component is cleaned up.
+		 *
+		 * @param {function(): *} fn - Computation function
+		 * @param {string} [name] - Optional name for debugging
+		 * @returns {ComputedSignal} Computed signal
+		 */
 		computed(fn, name) {
 			return this._c.computed(fn, name);
 		}
+
+		/**
+		 * Creates an async computed signal within the component.
+		 * Automatically disposed when component is cleaned up.
+		 *
+		 * @param {function(CancelToken): Promise<*>} fn - Async computation function
+		 * @param {string} [name] - Optional name for debugging
+		 * @returns {ComputedSignal<AsyncState>} Async computed signal
+		 */
 		computedAsync(fn, name) {
 			const asyncComputed = Signals.computedAsync(fn, name);
 			this.track(() => asyncComputed.dispose());
 			return asyncComputed;
 		}
+
+		/**
+		 * Creates a side effect that runs when dependencies change.
+		 *
+		 * @param {function(): void} fn - Effect function
+		 * @returns {ComputedSignal} Computed signal (for cleanup)
+		 */
 		effect(fn) {
 			return this.computed(() => {
 				fn();
 				return undefined;
 			});
 		}
+
+		/**
+		 * Batches multiple signal updates together.
+		 *
+		 * @param {function(): *} fn - Function containing updates
+		 * @returns {*} Return value of the function
+		 */
 		batch(fn) {
 			return Signals.batch(fn);
 		}
+
+		/**
+		 * Initializes component state by processing the state() method.
+		 * Called automatically before rendering. Can be overridden.
+		 * Calls init() hook if defined.
+		 */
 		initState() {
 			if (this.state) this._proc(this.state(), this);
 			if (this.init) this.init();
 		}
+
+		/**
+		 * Internal method to process state object, converting values to signals.
+		 * Functions become computed signals, objects with .get() are preserved.
+		 *
+		 * @private
+		 * @param {Object} obj - State object to process
+		 * @param {Object} tgt - Target object to assign signals to
+		 */
 		_proc(obj, tgt) {
 			Object.entries(obj).forEach(([k, v]) => {
 				if (typeof v === "function") tgt[k] = this.computed(v);
@@ -661,6 +1046,14 @@ export const Reactive = {
 				else tgt[k] = this.signal(v);
 			});
 		}
+
+		/**
+		 * Scans a DOM tree for data attributes and collects refs.
+		 * Updates this.refs with elements marked with data-ref.
+		 *
+		 * @param {HTMLElement} r - Root element to scan
+		 * @returns {function(): void} Cleanup function
+		 */
 		scan(r) {
 			// Collect refs - check the root element first, then descendants
 			// querySelectorAll only finds descendants, not the element itself
@@ -674,6 +1067,14 @@ export const Reactive = {
 			});
 			return this._c.scan(r, this);
 		}
+
+		/**
+		 * Renders the component by calling template() and applying styles().
+		 * Override template() and optionally styles() in your component.
+		 *
+		 * @returns {HTMLElement} Rendered DOM element
+		 * @throws {Error} If template doesn't return valid HTML
+		 */
 		render() {
 			try {
 				const t = document.createElement("div");
@@ -727,6 +1128,14 @@ export const Reactive = {
 			if (this.mount) this.mount();
 			return element;
 		}
+
+		/**
+		 * Appends the component to a container without clearing it.
+		 * Calls lifecycle: state() → init() → render() → mount()
+		 *
+		 * @param {string} containerId - ID of the container element or "body"
+		 * @returns {HTMLElement|null} Rendered element or null if container not found
+		 */
 		appendTo(containerId) {
 			// Special case for body element (no ID)
 			const container =
@@ -744,6 +1153,11 @@ export const Reactive = {
 			if (this.mount) this.mount();
 			return element;
 		}
+
+		/**
+		 * Cleans up the component by calling onCleanup() hook and disposing all reactive bindings.
+		 * Automatically called when component is destroyed.
+		 */
 		cleanup() {
 			if (this.onCleanup) this.onCleanup();
 			this._c.cleanup();
