@@ -1,0 +1,25 @@
+{
+	"source": {
+		"include": ["reactive.js"],
+		"includePattern": ".+\\.js(doc|x)?$"
+	},
+	"opts": {
+		"destination": "./docs/api",
+		"encoding": "utf8",
+		"recurse": false,
+		"readme": "README.md",
+		"template": "node_modules/jsdoc/templates/default"
+	},
+	"plugins": [],
+	"templates": {
+		"cleverLinks": true,
+		"monospaceLinks": false,
+		"default": {
+			"outputSourceFiles": true
+		}
+	},
+	"tags": {
+		"allowUnknownTags": true,
+		"dictionaries": ["jsdoc", "closure"]
+	}
+}
