@@ -46,8 +46,8 @@ async function scaffoldProject(deps = {}) {
 }
 
 function makeHandler(options = {}) {
-	const appRootDir = path.join(testDir, "app") + "/";
-	const appSrcDir = path.join(appRootDir, "src") + "/";
+	const appRootDir = `${path.join(testDir, "app")}/`;
+	const appSrcDir = `${path.join(appRootDir, "src")}/`;
 	return new CommandHandler({
 		logging: { silent: true },
 		settings: {
