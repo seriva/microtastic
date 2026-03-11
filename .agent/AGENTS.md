@@ -59,11 +59,11 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - Use built-in Node.js modules where possible (`node:fs`, `node:http`, `node:path`, `node:url`)
 
 ## Commands & Scripts
-- `npm run lint` - Run Biome linter/formatter
+- `npm run check` - Run Biome linter/formatter
 - `npm test` - Run unit tests
 - Main CLI commands: `init`, `prep`, `dev`, `prod`, `version`
 
-> **Workflow**: Always run `npm run lint` and `npm test` before considering any task complete.
+> **Workflow**: Always run `npm run check` (lint) and `npm test` before considering any task complete. Use the `/verification` workflow for the structured, auto-run steps.
 
 ## Hot Reload
 - DevServer supports hot reload via Server-Sent Events (SSE)
