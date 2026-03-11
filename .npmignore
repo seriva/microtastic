@@ -3,6 +3,20 @@
 .vscode/
 .cursorrules
 .gitignore
+AGENTS.md
+
+# Agent files
+.agent/
+.agents/
+
+# Husky
+.husky/
+
+# Tests
+test/
+
+# Docs config
+jsdoc.json
 
 # Dependencies
 node_modules/
@@ -10,4 +24,3 @@ node_modules/
 # Development configs
 biome.json
 !template/biome.json
-
