@@ -25,10 +25,9 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - Prefer functional array methods (`.map()`, `.filter()`, etc.)
 
 ### Architecture
-- **Class-based design**: Use classes for logical groupings (Logger, FileManager, CommandHandler, etc.)
+- **Class-based design**: Use classes for logical groupings (`Logger`, `FileManager`, `DevServer`, etc., located in `index.js`)
 - **Static methods**: Use for utility functions that don't need instance state
 - **Private methods**: Use `#` prefix for private class methods
-- **Error handling**: Use custom `MicrotasticError` class with error codes
 - **Async/await**: Prefer over `.then()` chains
 
 ### Naming Conventions
@@ -40,9 +39,11 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - **Unused variables**: Prefix with `_` if intentionally unused (but prefer removing them)
 
 ### File Structure
-- Single entry point: `index.js`
-- Template files in `/template/`
-- Service worker template: `sw.tpl`
+- **Core CLI Logic**: All core classes (`Logger`, `FileManager`, `DevServer`, etc.) reside in the single entry point: `index.js`
+- **Reactivity System**: Extracted in `reactive.js`
+- **Template files**: Located in `/template/`
+- **Service worker template**: `sw.tpl`
+- **Tests**: Located in `/test/` directory
 
 ### Error Handling
 - Throw `MicrotasticError` with descriptive messages and error codes
@@ -54,16 +55,17 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - Handle promise rejections with try/catch
 - Use `Promise.all()` for parallel operations when appropriate
 
-### Dependencies
+### Dependencies & Package Management
 - Minimize external dependencies
 - Use built-in Node.js modules where possible (`node:fs`, `node:http`, `node:path`, `node:url`)
+- **Package Manager**: Strictly use `npm`. Do not use `yarn` or `pnpm` to avoid mixed lockfiles.
 
 ## Commands & Scripts
 - `npm run check` - Run Biome linter/formatter
 - `npm test` - Run unit tests
 - Main CLI commands: `init`, `prep`, `dev`, `prod`, `version`
 
-> **Workflow**: Always run `npm run check` (lint) and `npm test` before considering any task complete. Use the `/verification` workflow for the structured, auto-run steps.
+> **Workflow**: Always run `npm run check` (lint) and `npm test` before considering any task complete. Use the `/verify` workflow for the structured, auto-run steps.
 
 ## Hot Reload
 - DevServer supports hot reload via Server-Sent Events (SSE)
@@ -88,6 +90,7 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - Manual testing via CLI commands: init, prep, dev, prod, version
 
 ## Reactive System (reactive.js)
+- **Importing**: Import explicitly via `"microtastic/reactive"` or `"./reactive.js"`.
 - **Signals-based reactivity**: Fine-grained reactive state management
 - **Signal naming**: Support for named signals for debugging (`Signals.create(0, undefined, "name")`)
 - **peek() method**: Read signal values without tracking dependencies
