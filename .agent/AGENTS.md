@@ -63,6 +63,8 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - `npm test` - Run unit tests
 - Main CLI commands: `init`, `prep`, `dev`, `prod`, `version`
 
+> **Workflow**: Always run `npm run lint` and `npm test` before considering any task complete.
+
 ## Hot Reload
 - DevServer supports hot reload via Server-Sent Events (SSE)
 - Configurable via `hotReload: true/false` in `.microtastic` (default: true)
@@ -116,4 +118,3 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - `esmExternalRequirePlugin` only handles external modules, not bundled dependencies
 - Revisit when: stable v1.0.0 releases with proper CommonJS→ESM conversion
 - Tracking issue: https://github.com/rolldown/rolldown/issues/6269
-

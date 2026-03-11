@@ -5,11 +5,8 @@ import http from "node:http";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import commonjs from "@rollup/plugin-commonjs";
-import { nodeResolve } from "@rollup/plugin-node-resolve";
-import terser from "@rollup/plugin-terser";
-import { rollup } from "rollup";
-import nodePolyfills from "rollup-plugin-polyfill-node";
+import nodePolyfills from "@rolldown/plugin-node-polyfills";
+import { rolldown } from "rolldown";
 
 const execAsync = promisify(exec);
 
@@ -490,17 +487,13 @@ class CommandHandler {
 
 			// Bundle each dependency
 			const bundleConfig = {
-				plugins: [
-					nodeResolve({ preferBuiltins: true }),
-					commonjs(),
-					nodePolyfills(),
-				],
+				plugins: [nodePolyfills()],
 			};
 
 			for (const dep of dependencies) {
 				try {
 					this.logger.info(`Processing dependency: ${dep}`);
-					const bundle = await rollup({
+					const bundle = await rolldown({
 						...bundleConfig,
 						input: `${this.paths.projectNodeModulesDir}${dep}`,
 					});
@@ -578,9 +571,8 @@ class CommandHandler {
 
 			// Bundle application
 			this.logger.info("Bundling application...");
-			const bundle = await rollup({
+			const bundle = await rolldown({
 				input: this.paths.appSrcEntryPath,
-				plugins: [this.settings.minifyBuild && terser()].filter(Boolean),
 				preserveEntrySignatures: false,
 			});
 
@@ -589,6 +581,7 @@ class CommandHandler {
 				entryFileNames: CONFIG.FILES.BUNDLE,
 				chunkFileNames: CONFIG.FILES.BUNDLE_CHUNK,
 				dir: this.paths.publicSrcDir,
+				minify: this.settings.minifyBuild,
 			});
 			await bundle.close();
 
