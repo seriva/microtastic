@@ -1,6 +1,6 @@
 {
 	"name": "microtastic",
-	"version": "0.0.69",
+	"version": "0.0.69 ",
 	"description": "Small tooling package for pure ES6 browser development.",
 	"main": "index.js",
 	"type": "module",
@@ -39,5 +39,8 @@
 	"dependencies": {
 		"@rolldown/plugin-node-polyfills": "^1.0.3",
 		"rolldown": "^1.0.0-rc.9"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }
