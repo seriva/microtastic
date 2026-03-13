@@ -596,9 +596,25 @@ class CommandHandler {
 					template.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? "");
 				const swContent = renderTemplate(swTemplate, {
 					cacheName: `${this.appPkg.name}-${this.appPkg.version}-${Date.now()}`,
-					cacheFiles: JSON.stringify(files, null, 4),
+					cacheFiles: JSON.stringify(
+						files,
+						null,
+						this.settings.minifyBuild ? 0 : 4,
+					),
 				});
-				await fs.writeFile(path.join(CONFIG.DIRS.PUBLIC, "sw.js"), swContent);
+				const swPath = path.join(CONFIG.DIRS.PUBLIC, "sw.js");
+				await fs.writeFile(swPath, swContent);
+
+				if (this.settings.minifyBuild) {
+					const swBundle = await rolldown({ input: swPath });
+					await swBundle.write({
+						format: "es",
+						entryFileNames: "sw.js",
+						dir: CONFIG.DIRS.PUBLIC,
+						minify: true,
+					});
+					await swBundle.close();
+				}
 			}
 
 			// Log build completion time
