@@ -35,7 +35,6 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    environment: release
     permissions:
       contents: read
       pages: write
@@ -76,6 +75,7 @@ jobs:
     needs: test
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: read
       id-token: write
