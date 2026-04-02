@@ -113,6 +113,22 @@ describe("Signals", () => {
 		assert.equal(callCount, 1, "Should still not call");
 	});
 
+	test("once should unsubscribe after firing to prevent memory leak", () => {
+		const count = Signals.create(0);
+		let unsubCalled = false;
+		const origSubscribe = count.subscribe.bind(count);
+		count.subscribe = (fn) => {
+			const unsub = origSubscribe(fn);
+			return () => {
+				unsubCalled = true;
+				unsub();
+			};
+		};
+
+		count.once(() => {});
+		assert.ok(unsubCalled, "Should call unsub after immediate fire");
+	});
+
 	test("should support custom equality function", () => {
 		const obj = Signals.create(
 			{ id: 1, name: "Alice" },
@@ -518,6 +534,23 @@ describe("Reactive.bindMultiple", () => {
 
 		x.set(10);
 		assert.equal(div.textContent, "15");
+	});
+
+	test("should render SafeHTML content as HTML", () => {
+		const div = document.createElement("div");
+		const tag = Signals.create("em");
+		const text = Signals.create("hello");
+
+		Reactive.bindMultiple(
+			div,
+			[tag, text],
+			([t, v]) => html`<${t}>${v}</${t}>`,
+		);
+
+		assert.equal(div.innerHTML, "<em>hello</em>");
+
+		tag.set("strong");
+		assert.equal(div.innerHTML, "<strong>hello</strong>");
 	});
 
 	test("should support cleanup", () => {

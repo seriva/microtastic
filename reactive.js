@@ -303,10 +303,11 @@ export const Signals = {
 					if (!called) {
 						called = true;
 						fn(val);
-						if (unsub) unsub();
+						unsub?.();
 					}
 				};
 				unsub = signal.subscribe(wrapper);
+				if (called) unsub();
 				return unsub;
 			},
 			update(fn) {
@@ -544,13 +545,13 @@ export const Signals = {
 	 * @param {function(): *} fn - Function containing signal updates
 	 * @returns {*} Return value of the function
 	 * @example
-	 * Signals.effect(() => {
+	 * Signals.batch(() => {
 	 *   count.set(1);
 	 *   count.set(2);
 	 *   count.set(3);
 	 * }); // Subscribers only notified once with value 3
 	 */
-	effect(fn) {
+	batch(fn) {
 		_batchPending = true;
 		try {
 			return fn();
@@ -560,17 +561,6 @@ export const Signals = {
 			_batchQueue.clear();
 			for (const fn of q) fn();
 		}
-	},
-
-	/**
-	 * Alias for effect(). Batches multiple signal updates together.
-	 *
-	 * @param {function(): *} fn - Function containing signal updates
-	 * @returns {*} Return value of the function
-	 * @see {@link Signals.effect}
-	 */
-	batch(fn) {
-		return Signals.effect(fn);
 	},
 };
 
@@ -613,8 +603,7 @@ export const Reactive = {
 	 */
 	bind(el, sig, fn) {
 		return sig.subscribe((val) => {
-			const v = val === undefined ? sig.get() : val;
-			const res = fn(v);
+			const res = fn(val);
 			el.innerHTML = res.__safe ? res.content : String(res);
 		});
 	},
@@ -631,9 +620,7 @@ export const Reactive = {
 	 * Reactive.bindAttr(link, "href", url);
 	 */
 	bindAttr: (el, attr, sig) =>
-		sig.subscribe((val) =>
-			el.setAttribute(attr, val === undefined ? sig.get() : val),
-		),
+		sig.subscribe((val) => el.setAttribute(attr, val)),
 
 	/**
 	 * Binds a signal to an element's textContent.
@@ -647,7 +634,7 @@ export const Reactive = {
 	 */
 	bindText: (el, sig) =>
 		sig.subscribe((val) => {
-			el.textContent = val === undefined ? sig.get() : val;
+			el.textContent = val;
 		}),
 
 	/**
@@ -663,9 +650,7 @@ export const Reactive = {
 	 */
 	bindBoolAttr: (el, attr, sig) =>
 		sig.subscribe((val) =>
-			(val === undefined ? sig.get() : val)
-				? el.setAttribute(attr, "")
-				: el.removeAttribute(attr),
+			val ? el.setAttribute(attr, "") : el.removeAttribute(attr),
 		),
 
 	/**
@@ -680,9 +665,7 @@ export const Reactive = {
 	 * Reactive.bindClass(div, "active", isActive);
 	 */
 	bindClass: (el, cls, sig) =>
-		sig.subscribe((val) =>
-			el.classList.toggle(cls, val === undefined ? sig.get() : val),
-		),
+		sig.subscribe((val) => el.classList.toggle(cls, val)),
 
 	/**
 	 * Binds a signal to a CSS style property.
@@ -697,7 +680,7 @@ export const Reactive = {
 	 */
 	bindStyle: (el, prop, sig) =>
 		sig.subscribe((val) => {
-			el.style[prop] = val === undefined ? sig.get() : val;
+			el.style[prop] = val;
 		}),
 
 	/**
@@ -722,8 +705,7 @@ export const Reactive = {
 			return fn(signals.map((s) => s.get()));
 		});
 		const unsub = computed.subscribe((val) => {
-			const res = val === undefined ? computed.get() : val;
-			el.textContent = res?.__safe ? res.content : String(res);
+			el.innerHTML = val?.__safe ? val.content : String(val);
 		});
 		return () => {
 			computed.dispose();
@@ -755,8 +737,7 @@ export const Reactive = {
 				const unsub = val.subscribe((v) => {
 					for (const f of cleanups) f?.();
 					cleanups = [];
-					const res = v === undefined ? val.get() : v;
-					el.innerHTML = res?.__safe ? res.content : String(res);
+					el.innerHTML = v?.__safe ? v.content : String(v);
 
 					// Scan children only to avoid infinite recursion on self
 					for (const child of el.children) {
@@ -770,20 +751,19 @@ export const Reactive = {
 			},
 			"data-visible": (el, val) =>
 				val.subscribe((v) => {
-					el.style.display = (v === undefined ? val.get() : v) ? "" : "none";
+					el.style.display = v ? "" : "none";
 				}),
 			"data-if": (el, val) => {
 				const placeholder = document.createComment("if");
 				const currentEl = el;
 				el.parentNode?.insertBefore(placeholder, el);
 				return val.subscribe((v) => {
-					const show = v === undefined ? val.get() : v;
-					if (show && !currentEl.parentNode) {
+					if (v && !currentEl.parentNode) {
 						placeholder.parentNode?.insertBefore(
 							currentEl,
 							placeholder.nextSibling,
 						);
-					} else if (!show && currentEl.parentNode) {
+					} else if (!v && currentEl.parentNode) {
 						currentEl.parentNode.removeChild(currentEl);
 					}
 				});
@@ -792,8 +772,7 @@ export const Reactive = {
 				if (!val?.set) return;
 				unsubs.push(
 					val.subscribe((v) => {
-						const value = v === undefined ? val.get() : v;
-						if (el.value !== value) el.value = value || "";
+						if (el.value !== v) el.value = v ?? "";
 					}),
 				);
 				const h = () => val.set(el.value);
@@ -986,9 +965,7 @@ export const Reactive = {
 		 * @returns {ComputedSignal<AsyncState>} Async computed signal
 		 */
 		computedAsync(fn, name) {
-			const asyncComputed = Signals.computedAsync(fn, name);
-			this.track(() => asyncComputed.dispose());
-			return asyncComputed;
+			return this._c.computedAsync(fn, name);
 		}
 
 		/**
@@ -1079,7 +1056,7 @@ export const Reactive = {
 			try {
 				const t = document.createElement("div");
 				const templateResult = this.template();
-				if (!templateResult || !templateResult.content) {
+				if (!templateResult?.content) {
 					throw new Error("Template must return html`` tagged template");
 				}
 				t.innerHTML = templateResult.content;
@@ -1103,13 +1080,33 @@ export const Reactive = {
 				errorEl.className = "component-error";
 				errorEl.style.cssText =
 					"padding: 20px; margin: 20px; border: 2px solid #ff6b6b; border-radius: 8px; background: #ffe0e0; color: #c92a2a; font-family: monospace;";
-				errorEl.innerHTML = `
-					<h3 style="margin-top: 0;">⚠️ Failed to render component</h3>
-					<p><strong>Component:</strong> ${this.constructor.name}</p>
-					<p><strong>Error:</strong> ${error.message}</p>
-					<p><strong>Type:</strong> ${error.name}</p>
-					<details><summary>Stack Trace</summary><pre style="overflow: auto;">${error.stack}</pre></details>
-				`;
+				const setText = (tag, label, text) => {
+					const el = document.createElement(tag);
+					el.textContent = text;
+					if (label) {
+						const b = document.createElement("strong");
+						b.textContent = label;
+						el.prepend(b);
+					}
+					return el;
+				};
+				const h3 = document.createElement("h3");
+				h3.style.marginTop = "0";
+				h3.textContent = "Failed to render component";
+				const details = document.createElement("details");
+				const summary = document.createElement("summary");
+				summary.textContent = "Stack Trace";
+				const pre = document.createElement("pre");
+				pre.style.overflow = "auto";
+				pre.textContent = error.stack;
+				details.append(summary, pre);
+				errorEl.append(
+					h3,
+					setText("p", "Component: ", this.constructor.name),
+					setText("p", "Error: ", error.message),
+					setText("p", "Type: ", error.name),
+					details,
+				);
 				return errorEl;
 			}
 		}

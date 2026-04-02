@@ -4,7 +4,7 @@ Microtastic is a tiny (~1,200 line) development environment that combines the be
 
 **📚 [View the full API documentation](https://seriva.github.io/microtastic/)**
 
-Like **Snowpack**, Microtastic uses [Rollup](https://rollupjs.org/) to convert CommonJS and multi-file ES6 modules into single-file ES6 modules during development. These can be imported directly in the browser without rebundling on every change, enabling fast development cycles. For production builds, Rollup handles bundling with tree-shaking and code-splitting to create optimized output.
+Like **Snowpack**, Microtastic uses [Rolldown](https://rolldown.rs/) to convert CommonJS and multi-file ES6 modules into single-file ES6 modules during development. These can be imported directly in the browser without rebundling on every change, enabling fast development cycles. For production builds, Rolldown handles bundling with tree-shaking and code-splitting to create optimized output.
 
 Microtastic includes **reactive.js**, a signals-based reactive state management library that brings together the fine-grained reactivity of **SolidJS**-style signals, the declarative data-attribute bindings of **Alpine.js**, and the template literal approach of libraries like **Lit**. This gives you a complete reactive development experience without heavy frameworks.
 
@@ -24,7 +24,7 @@ Microtastic includes **reactive.js**, a signals-based reactive state management 
 - **Opinionated**: Simple project structure and workflow
 
 **Tech Stack:**
-- JavaScript (ES6) with Rollup for bundling
+- JavaScript (ES6) with Rolldown for bundling
 - Signals-based reactivity (inspired by SolidJS, Alpine.js, Preact Signals)
 - Minimal external dependencies
 
@@ -181,7 +181,7 @@ You can create a `.microtastic` file in the root of your project and add and cha
 ```json
 {
     "genServiceWorker": false, // Experimental feature that generates an offline-mode service worker. Mainly written for private projects and will need additional code from the application side to work.
-    "minifyBuild": true, // If Rollup need to minimize the application
+    "minifyBuild": true, // If Rolldown need to minimize the application
     "serverPort": 8181, // Port the debug server is running on.
     "hotReload": true // Enable hot reload in development server. Automatically reloads the page when files in the app directory change.
 }
