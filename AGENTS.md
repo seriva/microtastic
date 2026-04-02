@@ -5,7 +5,7 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 
 ## Tech Stack
 - **Runtime**: Node.js (ES6 modules)
-- **Bundler**: Rollup with plugins (commonjs, node-resolve, terser, polyfill-node)
+- **Bundler**: Rolldown
 - **Linter/Formatter**: Biome
 - **Language**: Modern JavaScript (ES6+)
 
@@ -114,10 +114,3 @@ Microtastic is a small tooling package for pure ES6 browser development. It prov
 - Focus on developer experience and clear error messages
 - Keep the codebase simple and maintainable
 
-## Rolldown Status
-- **Not ready for production use** (as of v1.0.0-beta.46)
-- Built-in CommonJS support produces only default exports, breaking named imports
-- `@rollup/plugin-commonjs` is incompatible (plugin API incomplete)
-- `esmExternalRequirePlugin` only handles external modules, not bundled dependencies
-- Revisit when: stable v1.0.0 releases with proper CommonJS→ESM conversion
-- Tracking issue: https://github.com/rolldown/rolldown/issues/6269

@@ -739,14 +739,14 @@ class Microtastic {
 
 // Export classes for testing
 export {
-	MicrotasticError,
-	Logger,
-	FileManager,
-	DevServer,
-	CommandHandler,
-	Microtastic,
 	CONFIG,
+	CommandHandler,
+	DevServer,
+	FileManager,
+	Logger,
 	MIME_TYPES,
+	Microtastic,
+	MicrotasticError,
 };
 
 // Only run CLI if this is the main module (not imported)
