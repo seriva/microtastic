@@ -1362,6 +1362,8 @@ describe("Reactive.scan", () => {
 	});
 
 	test("should handle render errors gracefully", () => {
+		const origError = console.error;
+		console.error = () => {};
 		class BrokenComponent extends Reactive.Component {
 			template() {
 				// Returns invalid template
@@ -1371,6 +1373,7 @@ describe("Reactive.scan", () => {
 
 		const component = new BrokenComponent();
 		const element = component.render();
+		console.error = origError;
 
 		// Should render error component
 		assert.ok(element);
@@ -1385,8 +1388,11 @@ describe("Reactive.scan", () => {
 			}
 		}
 
+		const origError = console.error;
+		console.error = () => {};
 		const component = new TestComponent();
 		const result = component.mountTo("nonexistent-container");
+		console.error = origError;
 
 		assert.equal(result, null);
 		component.cleanup();
@@ -1399,8 +1405,11 @@ describe("Reactive.scan", () => {
 			}
 		}
 
+		const origWarn = console.warn;
+		console.warn = () => {};
 		const component = new TestComponent();
 		const result = component.appendTo("nonexistent-container");
+		console.warn = origWarn;
 
 		assert.equal(result, null);
 		component.cleanup();
