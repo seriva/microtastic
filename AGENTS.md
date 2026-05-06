@@ -1,116 +1,31 @@
-# Microtastic Project Rules
+# Microtastic
 
-## Project Overview
-Microtastic is a small tooling package for pure ES6 browser development. It provides a CLI for bundling dependencies, running a dev server, and building production-ready applications.
+Microtastic is a Node.js CLI tooling package for pure ES6 browser development. It provides dependency bundling, a dev server with hot reload, and production builds — plus a signals-based reactivity system (`reactive.js`) for building UI components.
 
 ## Tech Stack
-- **Runtime**: Node.js (ES6 modules)
-- **Bundler**: Rolldown
-- **Linter/Formatter**: Biome
-- **Language**: Modern JavaScript (ES6+)
 
-## Code Style & Conventions
+- **Runtime**: Node.js (ES modules)
+- **Bundler**: Rolldown 1.0.0-rc.18
+- **Linter/Formatter**: Biome 2.4.14
+- **Test Runner**: Node.js built-in (`node --test`)
+- **Package Manager**: npm (strictly — no yarn/pnpm)
 
-### Formatting
-- **Indentation**: Tabs (not spaces)
-- **Quotes**: Double quotes for strings
-- **Line endings**: Unix (LF)
-- Use Biome for all formatting and linting
+## Core Standards
 
-### JavaScript Conventions
-- Use ES6+ features (classes, arrow functions, async/await, destructuring)
-- Use `import`/`export` syntax (ES modules)
-- Prefer `const` over `let`, avoid `var`
-- Use template literals for string interpolation
-- Prefer functional array methods (`.map()`, `.filter()`, etc.)
+1. **Biome is law** — All code must pass `npm run check`. Use tabs, double quotes, Unix line endings.
+2. **Verify before done** — Always run `npm run check`, `npm test`, and `node index.js version` before completing any task. Use the `/verify` workflow.
+3. **ES modules only** — Use `import`/`export`, `async`/`await`, `const` over `let`, no `var`.
+4. **Minimize dependencies** — Prefer built-in Node.js modules (`node:fs`, `node:http`, `node:path`, `node:url`).
+5. **Throw `MicrotasticError`** — Use descriptive messages and error codes; log via the `Logger` class.
 
-### Architecture
-- **Class-based design**: Use classes for logical groupings (`Logger`, `FileManager`, `DevServer`, etc., located in `index.js`)
-- **Static methods**: Use for utility functions that don't need instance state
-- **Private methods**: Use `#` prefix for private class methods
-- **Async/await**: Prefer over `.then()` chains
+## Architecture
 
-### Naming Conventions
-- **Classes**: PascalCase (e.g., `CommandHandler`, `FileManager`)
-- **Constants**: UPPER_SNAKE_CASE for config objects (e.g., `CONFIG`, `MIME_TYPES`)
-- **Variables/functions**: camelCase (e.g., `loadSettings`, `appPkg`)
-- **Private class fields**: Prefix with `#` (e.g., `#log`, `#colors`)
-- **Private module-level variables**: Prefix with `_` (e.g., `_activeContext`, `_batchPending`)
-- **Unused variables**: Prefix with `_` if intentionally unused (but prefer removing them)
+All core CLI classes (`Logger`, `FileManager`, `DevServer`, `CommandHandler`, `Microtastic`) live in the single entry point `index.js`. The reactive system is extracted into `reactive.js` (imported via `"microtastic/reactive"`). Templates live in `/template/`, tests in `/test/`. Classes use `#`-prefixed private methods, `_`-prefixed module-level privates, PascalCase class names, camelCase functions/variables, and UPPER_SNAKE_CASE config constants.
 
-### File Structure
-- **Core CLI Logic**: All core classes (`Logger`, `FileManager`, `DevServer`, etc.) reside in the single entry point: `index.js`
-- **Reactivity System**: Extracted in `reactive.js`
-- **Template files**: Located in `/template/`
-- **Service worker template**: `sw.tpl`
-- **Tests**: Located in `/test/` directory
+## Anti-Patterns
 
-### Error Handling
-- Throw `MicrotasticError` with descriptive messages and error codes
-- Log errors using the `Logger` class
-- Exit with appropriate codes (1 for known errors, 2 for unexpected)
-
-### Async Patterns
-- Use `async/await` consistently
-- Handle promise rejections with try/catch
-- Use `Promise.all()` for parallel operations when appropriate
-
-### Dependencies & Package Management
-- Minimize external dependencies
-- Use built-in Node.js modules where possible (`node:fs`, `node:http`, `node:path`, `node:url`)
-- **Package Manager**: Strictly use `npm`. Do not use `yarn` or `pnpm` to avoid mixed lockfiles.
-
-## Commands & Scripts
-- `npm run check` - Run Biome linter/formatter
-- `npm test` - Run unit tests
-- Main CLI commands: `init`, `prep`, `dev`, `prod`, `version`
-
-> **Workflow**: Always run `npm run check` (lint) and `npm test` before considering any task complete. Use the `/verify` workflow for the structured, auto-run steps.
-
-## Hot Reload
-- DevServer supports hot reload via Server-Sent Events (SSE)
-- Configurable via `hotReload: true/false` in `.microtastic` (default: true)
-- Watches only the `app/` directory for file changes
-- Automatically reloads browser when files change
-
-## Best Practices
-- Keep functions focused and single-purpose
-- Use descriptive variable names
-- Add comments only when code intent isn't clear
-- Validate inputs early (fail fast)
-- Clean up resources (close bundles, etc.)
-- Use meaningful error messages
-
-## Testing
-- Unit tests in `/test/` directory using Node.js built-in test runner
-- Run tests with `npm test`
-- Test coverage: 159 tests covering all major classes and reactive system
-  - Core classes: MicrotasticError, Logger, FileManager, DevServer, CommandHandler, Microtastic (40 tests)
-  - Reactive system: Signals, computed, HTML utilities, CSS-in-JS, binding methods, components, lifecycle (119 tests)
-- Manual testing via CLI commands: init, prep, dev, prod, version
-
-## Reactive System (reactive.js)
-- **Importing**: Import explicitly via `"microtastic/reactive"` or `"./reactive.js"`.
-- **Signals-based reactivity**: Fine-grained reactive state management
-- **Signal naming**: Support for named signals for debugging (`Signals.create(0, undefined, "name")`)
-- **peek() method**: Read signal values without tracking dependencies
-- **Async computed**: `Signals.computedAsync()` for async operations (API calls, heavy computations)
-  - Returns state object: `{ status, data, error, loading }`
-  - Automatic cancellation when dependencies change
-  - Uses dedicated context per execution to avoid pollution
-- **Circular dependency detection**: Prevents infinite loops in computed signals with descriptive error messages
-- **Debug mode**: `setDebugMode(true)` enables logging of all signal updates and computed recalculations
-- **Batching**: Automatic batching in event handlers and manual batching with `Signals.batch()`
-- **Module-level private variables**: Use `_` prefix (e.g., `_activeContext`, `_debugMode`, `_computeStack`)
-- **Component lifecycle**: `state()` → `init()` → `render()` → `mount()`
-  - `state()`: Returns initial state (auto-converted to signals)
-  - `init()`: Called after state init, before render (optional) - create computed/async signals here
-  - `render()`: Creates DOM from `template()` with `styles()`
-  - `mount()`: Called after DOM mount (optional) - use for side effects
-  - `onCleanup()`: Called during cleanup (optional)
-
-## Notes
-- This is a CLI tool, not a web application
-- Focus on developer experience and clear error messages
-- Keep the codebase simple and maintainable
-
+- **No `.then()` chains** — Always use `async`/`await`.
+- **No `var`** — Use `const` by default, `let` only when reassignment is needed.
+- **No scattering logic** — CLI logic stays in `index.js`, reactivity stays in `reactive.js`.
+- **No comments for obvious code** — Only add comments when intent isn't clear from the code itself.
+- **No manual formatting** — Let Biome handle all formatting; never override its rules inline.
