@@ -4,7 +4,7 @@
 		"includePattern": ".+\\.js(doc|x)?$"
 	},
 	"opts": {
-		"destination": "./docs/api",
+		"destination": "./public",
 		"encoding": "utf8",
 		"recurse": false,
 		"readme": "README.md",
