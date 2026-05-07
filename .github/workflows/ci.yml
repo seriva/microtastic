@@ -12,7 +12,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -20,7 +20,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '24.x'
+          node-version: '25.x'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm install
@@ -39,11 +40,11 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -51,7 +52,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '24.x'
+          node-version: '25.x'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm install
@@ -65,7 +67,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: 'docs/api'
+          path: 'public'
 
       - name: Deploy to GitHub Pages
         id: deployment
@@ -78,7 +80,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -86,7 +88,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '24.x'
+          node-version: '25.x'
+          cache: "npm"
 
       - name: Clear npm auth token (OIDC will authenticate)
         run: npm config delete //registry.npmjs.org/:_authToken --location project
