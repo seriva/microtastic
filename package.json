@@ -31,10 +31,10 @@
 	},
 	"homepage": "https://github.com/seriva/microtastic#readme",
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.10",
-		"lefthook": "^1.11.13",
+		"@biomejs/biome": "^2.4.15",
 		"jsdoc": "^4.0.5",
-		"jsdom": "^29.0.1"
+		"jsdom": "^29.0.1",
+		"lefthook": "^2.1.6"
 	},
 	"dependencies": {
 		"@rolldown/plugin-node-polyfills": "^1.0.3",
