@@ -1,6 +1,6 @@
 {
 	"name": "microtastic",
-	"version": "0.0.71",
+	"version": "0.0.72",
 	"description": "Small tooling package for pure ES6 browser development.",
 	"main": "index.js",
 	"type": "module",
@@ -31,14 +31,14 @@
 	},
 	"homepage": "https://github.com/seriva/microtastic#readme",
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.15",
+		"@biomejs/biome": "^2.4.16",
 		"jsdoc": "^4.0.5",
-		"jsdom": "^29.0.1",
-		"lefthook": "^2.1.6"
+		"jsdom": "^29.1.1",
+		"lefthook": "^2.1.9"
 	},
 	"dependencies": {
 		"@rolldown/plugin-node-polyfills": "^1.0.3",
-		"rolldown": "^1.0.0-rc.13"
+		"rolldown": "^1.0.3"
 	},
 	"publishConfig": {
 		"access": "public"
