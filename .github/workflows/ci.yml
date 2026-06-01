@@ -90,12 +90,12 @@ jobs:
         with:
           node-version: '25.x'
           cache: "npm"
-
-      - name: Clear npm auth token (OIDC will authenticate)
-        run: npm config delete //registry.npmjs.org/:_authToken --location project
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm install
 
       - name: Publish to npm
         run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
