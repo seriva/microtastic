@@ -5,11 +5,11 @@
 > **IMMUTABLE SECTION:** Do not modify Part 1 unless explicitly instructed. This is a universal standard. Only adjust Part 2 (Project Context) for project-specific needs.
 
 ## 1. Context & Rules
-- **Caveman Speak & Map:** Communicate and maintain `## Project Map` natively using "caveman" style (extreme density, zero fluff, drop grammar, `->` for correlations). Update Map on changes. Exception: human-facing docs (`README`, `CHANGELOG`, plans) must remain readable.
-- **Plan-first:** Create `docs/vX.Y.Z/<feature>-plan.md` & update roadmap for non-trivial (multi-component, arch-altering, risky) features.
+- **Caveman Speak:** Communicate in "caveman" style (extreme density, zero fluff, drop grammar, `->` for correlations) for progress updates, execution logs, and short status. Use standard technical English for design reviews, architectural trade-offs, blockers, and questions. Exception: human-facing docs (`README`, `CHANGELOG`, plans) must remain readable.
+- **Plan-first:** Create `docs/vX.Y.Z/<feature>-plan.md` (or `docs/plans/<feature>-plan.md` for unversioned projects) & update roadmap for non-trivial (multi-component, arch-altering, risky) features.
 - **TDD:** Write failing tests first for non-trivial logic (if applicable).
 - **Quality:** Run format/lint before every commit. Update `CHANGELOG.md` & `README.md` before PR.
-- **Verify:** Run tests/compiler or ask user to visually verify before concluding/PR. Never assume.
+- **Verify:** Run tests/compiler or ask user to visually verify before concluding/PR. If automated tests do not exist for the subsystem, define and log the exact manual, visual, or console verification steps before declaring done. Never assume.
 - **Blockers:** Stop and ask user on ambiguity; do not guess.
 - **Scope:** Stick strictly to requested task/plan. No unrequested features/refactoring.
 - **Dependencies:** Use existing packages/standard lib. Ask before adding new dependencies.
@@ -17,7 +17,8 @@
 - **Code Preservation:** Do not delete existing comments, docstrings, or unrelated code unless explicitly instructed.
 
 ## 2. Git Standards
-- **Branches:** `main` is releasable. Use `feat/` or `fix/` -> PR. Trivial fixes (typos, comments) may commit directly to `main`.
+- **No Auto-Commit:** Never run `git commit`, `git push`, or history-rewriting commands unless the user explicitly asks in the current turn. Make changes, run quality gates, report, then wait for the user to commit or instruct.
+- **Branches:** Default branch is releasable; the pre-commit hook is the gate. Commit directly to it. Use a `feat/` or `fix/` branch + PR only when the user asks or the change is risky enough to want CI green before merge.
 - **Commits:** Conventional Commits (`type(scope): subject`). Subject ≤72 chars, imperative mood. Body explains *why*. One logical change per commit.
 - **Artifacts:** Never commit temporary agent session files (e.g., scratchpads, task checklists). Official feature plans should be committed.
 - **Security:** Never commit secrets/API keys. Ensure `.env` is gitignored.
@@ -49,6 +50,3 @@ All core CLI classes (`Logger`, `FileManager`, `DevServer`, `CommandHandler`, `M
 - **Formatting:** Let Biome handle all formatting; never override its rules inline.
 - **Comments:** No comments for obvious code. Only add comments when intent isn't clear.
 
-
-## Project Map
-[Map generated natively by agent]

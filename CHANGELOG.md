@@ -7,7 +7,10 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-<!-- Add changes here as you work. Move to a versioned section on release. -->
+### Changed
+
+- Updated npm dependencies to latest versions (`@biomejs/biome`, `jsdom`, `lefthook`, `rolldown`).
+
 
 ## [0.0.71] - 2026-05-07
 
